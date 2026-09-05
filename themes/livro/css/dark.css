@@ -1,0 +1,14 @@
+/* Livro — variante "dark": modo noturno de leitura (sépia escuro, tipo
+   e-reader), não o preto/verde de terminal — continua com a mesma
+   personalidade literária, só invertida. */
+@import url("light.css");
+
+:root {
+  --color-bg: #1e1a15;
+  --color-text: #e7dfc9;
+  --color-accent: #d98c8c;
+  --color-muted: #a89a80;
+  --color-border: #3a3126;
+}
+
+pre, code { background: #29241d; }

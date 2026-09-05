@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "asteria"
+version = "0.1.0"
+description = "SSG (Static Site Generator) Python baseado exclusivamente em documentos ODT"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = [
+    "PyYAML>=6.0",
+    "Jinja2>=3.1",
+    "watchfiles>=0.21",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+odt2web = ["odt2web"]
+
+[project.scripts]
+asteria = "asteria.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["asteria*"]
+
+[tool.setuptools.package-data]
+asteria = ["themes/**/*"]
