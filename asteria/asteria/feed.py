@@ -1,7 +1,5 @@
-"""Geração de feed RSS 2.0 / Atom para os posts (spec seção 14).
-
-Só posts entram no feed (páginas não têm data de publicação). O formato é
-escolhido via `feeds.format` no `site.yaml` ("rss" ou "atom").
+"""
+RSS 2.0 / Atom feed generation for posts
 """
 
 from __future__ import annotations

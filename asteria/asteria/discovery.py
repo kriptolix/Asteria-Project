@@ -1,23 +1,10 @@
-"""Descoberta de conteúdo (spec seção 6 e 26, passos 2-6).
+"""
+Content discovery.
 
-Varre `content/pages` e `content/posts`, converte cada `.odt`, extrai o
-front matter e monta os objetos `Page`/`Post`. Também identifica páginas
-HTML "cruas" (ver `asteria/raw.py`) e valida que todos os identificadores
-(nome do arquivo/pasta sem extensão) são únicos em todo o site.
-
-Duas regras de varredura, intencionalmente diferentes:
-
-- **`content/pages/` é recursiva**: subpastas servem para *organizar*
-  páginas (ex: `content/pages/guia/instalacao.odt`), sem afetar `id`/URL —
-  a navegação entre páginas é responsabilidade do `nav:` em `site.yaml`
-  (ver `asteria/nav.py`), não da estrutura de diretórios. Uma subpasta que
-  não contém nenhum `.odt` em toda a sua árvore, mas tem um `index.html`
-  diretamente nela, é tratada como uma página HTML crua.
-- **`content/posts/` é plana** (um nível só): agrupar posts em subpastas
-  não faz sentido para uma listagem cronológica de blog. Uma subpasta
-  imediata de `content/posts/` com `index.html` também vira uma página
-  crua (útil para uma landing page especial ligada a um post, por
-  exemplo), mas não há recursão além desse primeiro nível.
+Scans `content/pages` and `content/posts`, converts each `.odt` file, extracts
+front matter, and assembles `Page`/`Post` objects. It also identifies "raw"
+HTML pages (see `asteria/raw.py`) and validates that all identifiers
+(file/folder names without extensions) are unique across the entire site.
 """
 
 from __future__ import annotations
@@ -35,7 +22,7 @@ from .raw import RawPage, load_raw_page
 def _walk_pages(
     directory: Path, diagnostics: Diagnostics
 ) -> tuple[list[Path], list[Path]]:
-    """Recursivo. Retorna (caminhos_odt, pastas_raw)."""
+    
     odt_paths: list[Path] = []
     raw_dirs: list[Path] = []
     _walk_pages_rec(directory, odt_paths, raw_dirs, diagnostics)
@@ -48,6 +35,7 @@ def _walk_pages_rec(
     raw_dirs: list[Path],
     diagnostics: Diagnostics,
 ) -> None:
+    
     if not directory.exists():
         return
     for entry in sorted(directory.iterdir()):
@@ -55,14 +43,14 @@ def _walk_pages_rec(
             odt_paths.append(entry)
         elif entry.is_dir():
             if any(entry.rglob("*.odt")):
-                # Pasta organizacional: contém (em algum nível) .odt —
-                # recursa normalmente, sem afetar id/URL das páginas.
+                # Organizational folder: contains (at some level) .odt files —
+                # recurses normally, without affecting page IDs/URLs.
                 _walk_pages_rec(entry, odt_paths, raw_dirs, diagnostics)
             elif (entry / "index.html").exists():
                 raw_dirs.append(entry)
             else:
                 diagnostics.warning(
-                    f"Pasta em content/pages/ sem .odt nem index.html, ignorada: '{entry.name}'.",
+                    f"Folder in content/pages/ without .odt or index.html, ignored: '{entry.name}'.",
                     source=str(entry),
                 )
 
@@ -70,7 +58,7 @@ def _walk_pages_rec(
 def _walk_posts(
     directory: Path, diagnostics: Diagnostics
 ) -> tuple[list[Path], list[Path]]:
-    """Plano (só um nível). Retorna (caminhos_odt, pastas_raw)."""
+    
     odt_paths: list[Path] = []
     raw_dirs: list[Path] = []
     if not directory.exists():
@@ -84,12 +72,29 @@ def _walk_posts(
                 raw_dirs.append(entry)
             else:
                 diagnostics.warning(
-                    f"Pasta em content/posts/ sem index.html, ignorada: '{entry.name}' "
-                    "(content/posts/ não é recursivo para .odt).",
+                    f"Folder in content/posts/ without index.html, ignored: '{entry.name}' "
+                    "(content/posts/ is not recursive for .odt).",
                     source=str(entry),
                 )
 
     return odt_paths, raw_dirs
+
+
+def _detect_lang(stem: str, languages: list[str], default_language: str) -> tuple[str, str]:
+    """Detects an explicit language in the filename. 
+
+    Convention: "meu-post.pt.odt" -> language "pt" (provided "pt" is
+    among the languages ​​configured in `i18n.languages`/`site.language`); 
+    "meu-post.odt" -> site's default language. Returns
+    (translation_key, lang), where translation_key is the filename
+    without the language suffix—used to group translations of the
+    same post together.
+    """
+    if "." in stem:
+        base, _, suffix = stem.rpartition(".")
+        if base and suffix in languages:
+            return base, suffix
+    return stem, default_language
 
 
 def _load_document(
@@ -97,34 +102,35 @@ def _load_document(
     kind: str,
     converter: ODTConverter,
     diagnostics: Diagnostics,
+    lang: str = "",
+    translation_key: str = "",
 ) -> Document:
+    
     doc_id = path.stem
     if not doc_id or not doc_id.replace("-", "").replace("_", "").isalnum():
         diagnostics.warning(
-            f"Identificador de documento incomum derivado do nome de arquivo: '{doc_id}'.",
+            f"Unusual document identifier derived from the filename: '{doc_id}'.",
             source=str(path),
         )
 
     result = converter.convert(path, diagnostics)
 
-    if result.metadata is not None:
-        # O conversor (ex: odt2web) já reconheceu e extraiu o bloco de
-        # metadados por conta própria (spec 5.3 — responsabilidade da
-        # biblioteca ODT). O HTML já vem sem o bloco de front matter.
+    if result.metadata is not None:        
         fm = result.metadata
         content_html = result.html
-    else:
-        # Conversor não reconhece front matter nativamente (ex: o
-        # FallbackConverter): o SSG procura o bloco padronizado
-        # `div.ssg-frontmatter` no HTML (spec 5.2/5.3).
+    else:        
         fm, content_html = extract_frontmatter(
             result.html, source=str(path), diagnostics=diagnostics
         )
         if not fm.title:
             diagnostics.warning(
-                "Documento sem 'title' no front matter; usando o nome do arquivo.",
+                "Document without a 'title' in the front matter; using the filename.",
                 source=str(path),
             )
+
+    # The `lang:` field in the front matter, when present, takes precedence
+    # over the language detected from the filename.
+    final_lang = fm.lang or lang
 
     cls = Page if kind == "page" else Post
     return cls(
@@ -135,6 +141,8 @@ def _load_document(
         content_html=content_html,
         raw_content_html=content_html,
         images=result.images,
+        lang=final_lang,
+        translation_key=translation_key or doc_id,
     )
 
 
@@ -147,7 +155,14 @@ def discover_content(
 
     page_odts, page_raw_dirs = _walk_pages(config.pages_dir, diagnostics)
     for path in page_odts:
-        pages.append(_load_document(path, "page", converter, diagnostics))  # type: ignore[arg-type]
+        # Páginas não participam do suporte multi-idioma por enquanto:
+        # sempre usam o idioma padrão do site.
+        pages.append(
+            _load_document(
+                path, "page", converter, diagnostics,
+                lang=config.default_language, translation_key=path.stem,
+            )
+        )  # type: ignore[arg-type]
     for raw_dir in page_raw_dirs:
         raw_pages.append(
             load_raw_page(raw_dir, config.url_patterns["pages"], diagnostics)
@@ -155,14 +170,38 @@ def discover_content(
 
     post_odts, post_raw_dirs = _walk_posts(config.posts_dir, diagnostics)
     for path in post_odts:
-        posts.append(_load_document(path, "post", converter, diagnostics))  # type: ignore[arg-type]
+        translation_key, detected_lang = _detect_lang(
+            path.stem, config.languages, config.default_language
+        )
+        posts.append(
+            _load_document(
+                path, "post", converter, diagnostics,
+                lang=detected_lang, translation_key=translation_key,
+            )
+        )  # type: ignore[arg-type]
     for raw_dir in post_raw_dirs:
         raw_pages.append(
             load_raw_page(raw_dir, config.url_patterns["posts"], diagnostics)
         )
 
     _validate_unique_ids(pages, posts, raw_pages, diagnostics)
+    _validate_languages(posts, config, diagnostics)
     return pages, posts, raw_pages
+
+
+def _validate_languages(
+    posts: list[Post], config: SiteConfig, diagnostics: Diagnostics
+) -> None:
+    known = set(config.languages)
+    for post in posts:
+        if post.lang not in known:
+            diagnostics.warning(
+                f"Post language '{post.lang}' is not listed in "
+                "i18n.languages (or site.language); it will still be "
+                "built, but won't get a language prefix and won't be "
+                "grouped with the site's other languages.",
+                source=str(post.source_path),
+            )
 
 
 def _validate_unique_ids(
@@ -171,12 +210,12 @@ def _validate_unique_ids(
     raw_pages: list[RawPage],
     diagnostics: Diagnostics,
 ) -> None:
-    seen: dict[str, str] = {}  # id -> caminho de origem (str) já visto
+    seen: dict[str, str] = {}  # id -> source path (str) already seen
     for item in [*pages, *posts, *raw_pages]:
         source = str(getattr(item, "source_path", None) or getattr(item, "source_dir", ""))
         if item.id in seen:
             diagnostics.error(
-                f"ID duplicado '{item.id}': usado por '{seen[item.id]}' e '{source}'.",
+                f"Duplicate ID '{item.id}': used by '{seen[item.id]}' and '{source}'.",
                 source=source,
             )
         else:

@@ -4,6 +4,7 @@ Build pipeline orchestration
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -18,18 +19,19 @@ from .errors import AsteriaError, Diagnostics
 from .feed import render_atom, render_rss
 from .nav import build_nav
 from .pagination import paginate
-from .references import build_registry, resolve_references_for_all
+from .references import build_registry, resolve_references_for_all, split_at_more_marker
 from .sitemap import SitemapEntry, render_sitemap
 from .social import build_social_links
 from .taxonomy import Term, collect_categories, collect_tags
-from .templating import create_environment, make_site_view, render_template
+from .templating import apply_asset_manifest, create_environment, make_site_view, render_template
 from .theme_config import load_theme_config
 from .toc import inject_heading_ids_and_build_toc
-from .urls import build_url, url_to_output_dir, url_to_output_path
+from .urls import build_url, prefix_lang, url_to_output_dir, url_to_output_path
 from .writer import (
     clean_output,
     copy_raw_pages,
     copy_static_assets,
+    fingerprint_assets,
     list_generated_files,
     write_document_images,
     write_page,
@@ -57,7 +59,20 @@ def _assign_urls(config: SiteConfig, pages: list[Page], posts: list[Post]) -> No
     for page in pages:
         page.url = build_url(patterns["pages"], slug=page.slug)
     for post in posts:
-        post.url = build_url(patterns["posts"], slug=post.slug)
+        base_url = build_url(patterns["posts"], slug=post.slug)
+        post.url = prefix_lang(base_url, post.lang, config.default_language)
+
+
+def _link_translations(posts: list[Post]) -> None:
+    """Populates `post.translations` with the other versions (in other languages) 
+    of each post, grouped by `translation_key`."""
+    groups: dict[str, list[Post]] = {}
+    for post in posts:
+        groups.setdefault(post.translation_key, []).append(post)
+
+    for group in groups.values():
+        for post in group:
+            post.translations = {p.lang: p for p in group if p is not post}
 
 
 def _build_toc_for_all(documents: list[Document]) -> None:
@@ -68,11 +83,18 @@ def _build_toc_for_all(documents: list[Document]) -> None:
 
 
 def _assign_prev_next(posts: list[Post]) -> None:
-    """Chronological: from oldest to most recent."""
-    ordered = sorted(posts, key=lambda p: p.sort_key())
-    for i, post in enumerate(ordered):
-        post.previous = ordered[i - 1] if i > 0 else None
-        post.next = ordered[i + 1] if i < len(ordered) - 1 else None
+    """Chronological: from oldest to most recent, within each language
+    (a post never points to a previous/next post in a different
+    language)."""
+    by_lang: dict[str, list[Post]] = {}
+    for post in posts:
+        by_lang.setdefault(post.lang, []).append(post)
+
+    for group in by_lang.values():
+        ordered = sorted(group, key=lambda p: p.sort_key())
+        for i, post in enumerate(ordered):
+            post.previous = ordered[i - 1] if i > 0 else None
+            post.next = ordered[i + 1] if i < len(ordered) - 1 else None
 
 
 def _build_menu(
@@ -145,6 +167,7 @@ def _document_context(
         "og_type": "article" if doc.kind == "post" else "website",
         "show_toc": theme_ns["sidebar_toc"] and doc.toc_enabled,
         "show_navigation": bool(theme_ns["nav"]) and doc.navigation_enabled,
+        "lang": doc.lang or config.default_language,
     }
 
 
@@ -174,7 +197,7 @@ def run_build(
 ) -> BuildResult:
     
     diagnostics = Diagnostics()
-    config_path = project_root / config_filename
+    config_path = project_root / "source" /config_filename
     config = load_config(config_path)
 
     if not config.theme_dir.exists():
@@ -196,6 +219,7 @@ def run_build(
     if diagnostics.has_errors:
         return BuildResult(diagnostics, pages, posts, config.output_dir)
 
+    _link_translations(posts)
     _assign_urls(config, pages, posts)
     resolve_references_for_all([*pages, *posts], diagnostics, extra_targets=raw_pages)
 
@@ -216,7 +240,7 @@ def run_build(
     theme_ns: dict = dict(theme_config_raw)
     theme_ns["menu"] = menu_items
     theme_ns["nav"] = nav_items
-    theme_ns["social"] = social_links
+    theme_ns["social"] = social_links   
     theme_ns.setdefault("sidebar_toc", True)
     theme_ns.setdefault("default_variant", "light")
 
@@ -224,8 +248,36 @@ def run_build(
 
     env = create_environment(config)
 
+    # Excerpt [[more]]
+   
+    for post in posts:
+        post.excerpt_length = config.excerpt_length
+        post.excerpt_enabled = config.excerpt_enabled
+        post.content_html, manual_excerpt = split_at_more_marker(post.content_html)
+        post.manual_excerpt = manual_excerpt
+
+    _build_toc_for_all([*pages, *posts])
+
     if not dry_run:
         clean_output(config)
+
+    # Assets estáticos (css/js/fonts/images do tema + static/) são
+    # copiados e, opcionalmente, "fingerprinted" (nome com hash do
+    # conteúdo) ANTES de renderizar qualquer página: os templates usam o
+    # global `asset()` para resolver o nome final, então o manifesto
+    # precisa existir antes do primeiro render_template.
+    if not dry_run:
+        copy_static_assets(config)
+        asset_manifest = (
+            fingerprint_assets(config.output_dir) if config.fingerprint_assets_enabled else {}
+        )
+        if asset_manifest:
+            write_text_file(
+                config.output_dir,
+                "asset-manifest.json",
+                json.dumps(asset_manifest, indent=2, sort_keys=True) + "\n",
+            )
+        apply_asset_manifest(env, asset_manifest)
 
     home_candidates: dict[str, str] = {}
     home_candidate_images: dict[str, list] = {}
@@ -259,49 +311,87 @@ def run_build(
             )
         sitemap_entries.append(SitemapEntry(path=post.url, lastmod=post.date))
 
-    # -- paginated blog index -------------------------------------
-    posts_desc = sorted(posts, key=lambda p: p.sort_key(), reverse=True)
-    blog_pages = paginate(posts_desc, config.posts_per_page, config.blog_index_url)
-    for blog_page in blog_pages:
-        html = _finalize_html(
-            render_template(
-                env,
-                "blog_index.html",
-                {
-                    "site": site_view,
-                    "theme": theme_ns,
-                    "posts": blog_page.items,
-                    "pagination": blog_page,
-                    "theme_css": theme_ns["default_variant"],
-                    "canonical_path": blog_page.url,
-                    "og_type": "website",
-                    "show_navigation": False,
-                    "breadcrumbs": [
-                        {"title": config.title, "url": "/"},
-                        {"title": "Blog", "url": config.blog_index_url},
-                    ],
-                },
-            ),
-            live_reload_script,
-        )
-        if not dry_run:
-            write_page(config.output_dir, url_to_output_path(blog_page.url), html)
-        sitemap_entries.append(SitemapEntry(path=blog_page.url))
-        if blog_page.number == 1:
-            home_candidates["blog"] = html
-            home_candidates[config.blog_prefix.strip("/")] = html
+    # -- paginated blog index, taxonomies and feed, per language ----------
+    # Idioma padrão mantém as URLs de hoje (/blog/, /tags/, /rss.xml, sem
+    # prefixo). Idiomas extras (i18n.languages) ganham as mesmas
+    # estruturas sob um prefixo '/{lang}/', para não misturar posts de
+    # idiomas diferentes num mesmo índice/feed/nuvem de tags.
+    for lang in config.languages:
+        is_default_lang = lang == config.default_language
+        lang_posts = [p for p in posts if p.lang == lang]
+        lang_posts_desc = sorted(lang_posts, key=lambda p: p.sort_key(), reverse=True)
 
-    
-    sitemap_entries += _write_taxonomy(
-        config, env, site_view, theme_ns, collect_tags(posts, config),
-        kind_label="Tags", index_url=config.data["urls"]["tags_index"],
-        dry_run=dry_run, live_reload_script=live_reload_script,
-    )
-    sitemap_entries += _write_taxonomy(
-        config, env, site_view, theme_ns, collect_categories(posts, config),
-        kind_label="Categorias", index_url=config.data["urls"]["categories_index"],
-        dry_run=dry_run, live_reload_script=live_reload_script,
-    )
+        blog_index_url = prefix_lang(config.blog_index_url, lang, config.default_language)
+        blog_pages = paginate(lang_posts_desc, config.posts_per_page, blog_index_url)
+        for blog_page in blog_pages:
+            html = _finalize_html(
+                render_template(
+                    env,
+                    "blog.html",
+                    {
+                        "site": site_view,
+                        "theme": theme_ns,
+                        "posts": blog_page.items,
+                        "pagination": blog_page,
+                        "theme_css": theme_ns["default_variant"],
+                        "canonical_path": blog_page.url,
+                        "og_type": "website",
+                        "show_navigation": False,
+                        "lang": lang,
+                        "breadcrumbs": [
+                            {"title": config.title, "url": "/"},
+                            {"title": "Blog", "url": blog_index_url},
+                        ],
+                    },
+                ),
+                live_reload_script,
+            )
+            if not dry_run:
+                write_page(config.output_dir, url_to_output_path(blog_page.url), html)
+            sitemap_entries.append(SitemapEntry(path=blog_page.url))
+            # A home page ('blog' no site.yaml) só pode apontar para o
+            # índice do idioma padrão — os demais idiomas não disputam a
+            # raiz do site.
+            if blog_page.number == 1 and is_default_lang:
+                home_candidates["blog"] = html
+                home_candidates[config.blog_prefix.strip("/")] = html
+
+        tags_index_url = prefix_lang(
+            config.data["urls"]["tags_index"], lang, config.default_language
+        )
+        categories_index_url = prefix_lang(
+            config.data["urls"]["categories_index"], lang, config.default_language
+        )
+        lang_tags = collect_tags(lang_posts, config)
+        lang_categories = collect_categories(lang_posts, config)
+        if not is_default_lang:
+            for term in [*lang_tags, *lang_categories]:
+                term.url = prefix_lang(term.url, lang, config.default_language)
+
+        sitemap_entries += _write_taxonomy(
+            config, env, site_view, theme_ns, lang_tags,
+            kind_label="Tags", index_url=tags_index_url,
+            dry_run=dry_run, live_reload_script=live_reload_script,
+        )
+        sitemap_entries += _write_taxonomy(
+            config, env, site_view, theme_ns, lang_categories,
+            kind_label="Categorias", index_url=categories_index_url,
+            dry_run=dry_run, live_reload_script=live_reload_script,
+        )
+
+        if config.feeds_enabled and not dry_run:
+            feed_format = config.data["feeds"].get("format", "rss")
+            feed_xml = (
+                render_rss(config, lang_posts_desc)
+                if feed_format == "rss"
+                else render_atom(config, lang_posts_desc)
+            )
+            # Idioma padrão preserva o nome de arquivo de sempre
+            # (rss.xml/atom.xml); os demais ganham um prefixo ('pt-rss.xml').
+            feed_filename = (
+                _feed_filename(config) if is_default_lang else f"{lang}-{_feed_filename(config)}"
+            )
+            write_text_file(config.output_dir, feed_filename, feed_xml)
 
     # --home page: can point to a page, to the
     # blog index ('blog'), or to another generated index that has been
@@ -345,9 +435,6 @@ def run_build(
         write_page(config.output_dir, "404.html", not_found_html)
 
     if not dry_run:
-        
-        copy_static_assets(config)
-        
         copy_raw_pages(config.output_dir, raw_pages)
     sitemap_entries += [SitemapEntry(path=p.url) for p in raw_pages]
 
@@ -355,17 +442,6 @@ def run_build(
     if config.sitemap_enabled and not dry_run:
         sitemap_xml = render_sitemap(sitemap_entries, config.url)
         write_text_file(config.output_dir, "sitemap.xml", sitemap_xml)
-
-    # -- feed RSS/Atom --------------------------------------------------
-    if config.feeds_enabled and not dry_run:
-        feed_posts = sorted(posts, key=lambda p: p.sort_key(), reverse=True)
-        feed_format = config.data["feeds"].get("format", "rss")
-        feed_xml = (
-            render_rss(config, feed_posts)
-            if feed_format == "rss"
-            else render_atom(config, feed_posts)
-        )
-        write_text_file(config.output_dir, _feed_filename(config), feed_xml)
 
     # -- robots.txt  ------------------------------------------------------
     if config.robots_enabled and not dry_run:

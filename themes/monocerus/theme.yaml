@@ -1,4 +1,4 @@
-# Namespace próprio do tema "minimal" — exposto aos templates como
+# Namespace próprio do tema "monocerus" — exposto aos templates como
 # theme.<chave>. Toda chave que base.html/page.html/etc. usam precisa
 # estar declarada aqui (mesmo que vazia) — o Asteria não faz fallback
 # silencioso: uma chave usada no template e ausente aqui quebra o build.
@@ -9,8 +9,13 @@
 sidebar_toc: true
 default_variant: light
 
-# Aparece abaixo do título do site no cabeçalho, se não vazio.
+# Linha pequena acima do nome do site, no cabeçalho (o "wordmark" grande
+# é sempre site.title). Deixe vazio pra não mostrar.
 subtitulo: ""
+
+# Texto de um selo/carimbo circular no rodapé (ex: "Feito sem IA",
+# "1ª edição", "playtest"). Deixe vazio pra não mostrar nada.
+selo: ""
 
 # Menu do cabeçalho — 'page' é o id de uma página (mesma convenção de
 # [[id]]), ou a palavra especial 'blog'.
@@ -18,11 +23,13 @@ menu: []
 
 # Navegação hierárquica da sidebar (estilo nav: do MkDocs Material) — veja
 # o README do Asteria para o formato completo (seções, título automático
-# do documento, convenção de página-índice de seção).
+# do documento, convenção de página-índice de seção). Pensada pra
+# organizar os capítulos/seções do SRD.
 nav: []
 
-# Links de redes sociais no rodapé (ícones circulares). Plataformas
-# reconhecidas: github, gitlab, twitter, x, mastodon, linkedin, youtube,
-# instagram, facebook, discord, telegram, rss, email — outras caem num
-# monograma genérico.
+# Links de redes sociais no rodapé. Este tema usa IMAGENS (não os
+# monogramas SVG gerados automaticamente pelos outros temas) — coloque um
+# arquivo <label-em-minúsculo>.svg (ou .png, ajustando o base.html) dentro
+# de theme/monocerus/images/ pra cada plataforma listada aqui. Ex: uma
+# entrada com platform "github" precisa de images/github.svg.
 social: []

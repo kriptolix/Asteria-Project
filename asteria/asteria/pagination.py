@@ -1,4 +1,4 @@
-"""Paginação (spec seção 17): `/blog/`, `/blog/page/2/`, `/blog/page/3/` ..."""
+"""Pagination: `/blog/`, `/blog/page/2/`, `/blog/page/3/` ..."""
 
 from __future__ import annotations
 
@@ -9,10 +9,9 @@ from .document import Post
 
 @dataclass
 class Page:
-    """Uma página de uma listagem paginada."""
-
+    
     items: list[Post]
-    number: int  # 1-indexado
+    number: int  # 1-indexed
     total_pages: int
     url: str
     prev_url: str | None
@@ -22,8 +21,7 @@ class Page:
 def paginate(
     posts: list[Post], per_page: int, base_url: str
 ) -> list[Page]:
-    """`base_url` deve terminar com `/`, ex: '/blog/'."""
-
+    
     if per_page < 1:
         per_page = len(posts) or 1
 

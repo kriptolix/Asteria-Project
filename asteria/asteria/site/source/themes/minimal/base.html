@@ -1,13 +1,14 @@
 {% import "_nav.html" as navmacros %}
+{% set current_lang = lang if lang is defined else site.default_language %}
 <!doctype html>
-<html lang="{{ site.language }}">
+<html lang="{{ current_lang }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}{{ site.title }}{% endblock %}</title>
     <meta name="description" content="{% block description %}{{ site.description }}{% endblock %}">
     <link rel="canonical" href="{{ site.url }}{{ canonical_path }}">
-    <link rel="stylesheet" href="/css/{{ theme_css }}.css">
+    <link rel="stylesheet" href="{{ asset('/css/' ~ theme_css ~ '.css') }}">
 
     <meta property="og:site_name" content="{{ site.title }}">
     <meta property="og:type" content="{{ og_type or 'website' }}">
@@ -19,14 +20,23 @@
     {% if site.feed_url %}
     <link rel="alternate" type="application/rss+xml" title="{{ site.title }}" href="{{ site.feed_url }}">
     {% endif %}
+
+    {# Anuncia para buscadores as versões deste mesmo conteúdo em outros
+       idiomas (só disponível quando o post tem traduções vinculadas). #}
+    {% if post is defined and post.translations %}
+    <link rel="alternate" hreflang="{{ current_lang }}" href="{{ site.url }}{{ canonical_path }}">
+    {% for translation_lang, translated in post.translations.items() %}
+    <link rel="alternate" hreflang="{{ translation_lang }}" href="{{ site.url }}{{ translated.url }}">
+    {% endfor %}
+    {% endif %}
 </head>
 <body>
     <header class="site-header">
         <div class="site-header__inner">
             <div>
                 <a class="site-title" href="/">{{ site.title }}</a>
-                {% if theme.subtitulo %}
-                <p class="site-subtitle">{{ theme.subtitulo }}</p>
+                {% if theme.subtitle %}
+                <p class="site-subtitle">{{ theme.subtitle }}</p>
                 {% endif %}
             </div>
             <nav class="site-menu">
@@ -36,6 +46,24 @@
                     {% endfor %}
                 </ul>
             </nav>
+            {% if site.languages|length > 1 %}
+            <nav class="lang-switcher" aria-label="idiomas">
+                <ul>
+                    {% for switch_lang in site.languages %}
+                    {% set translated = post.translations.get(switch_lang) if (post is defined and post.translations) else none %}
+                    <li>
+                        {% if switch_lang == current_lang %}
+                        <span class="lang-switcher__current" aria-current="true">{{ switch_lang }}</span>
+                        {% elif translated %}
+                        <a href="{{ translated.url }}" hreflang="{{ switch_lang }}">{{ switch_lang }}</a>
+                        {% else %}
+                        <a href="{{ site.blog_index_urls.get(switch_lang, '/') }}" hreflang="{{ switch_lang }}">{{ switch_lang }}</a>
+                        {% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+            </nav>
+            {% endif %}
         </div>
     </header>
 
@@ -69,7 +97,7 @@
             {% for item in theme.social %}
             <a href="{{ item.url }}" class="social-link" aria-label="{{ item.label }}" title="{{ item.label }}"
                 rel="me noopener">
-                <img src="images/{{ item.label | lower }}.svg" alt="{{ item.label }}">
+                <img src="{{ asset('/images/' ~ (item.platform | lower) ~ '.svg') }}" alt="{{ item.label }}">
             </a>
             {% endfor %}
         </div>

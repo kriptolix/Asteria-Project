@@ -1,8 +1,5 @@
-"""Coleta centralizada de erros e warnings durante o pipeline de build.
-
-O pipeline do Asteria nunca deve abortar no primeiro problema: cada etapa
-reporta seus problemas neste coletor e o CLI decide, no final, se o build
-teve sucesso (sem erros) e imprime um relatório legível.
+"""
+Centralized collection of errors and warnings during the build pipeline.
 """
 
 from __future__ import annotations
@@ -20,16 +17,16 @@ class Severity(str, Enum):
 class Diagnostic:
     severity: Severity
     message: str
-    source: str | None = None  # ex: caminho do arquivo .odt
+    source: str | None = None  # ex: .odt file path
 
     def __str__(self) -> str:  # pragma: no cover - trivial
-        prefix = "ERRO" if self.severity is Severity.ERROR else "AVISO"
+        prefix = "ERROR" if self.severity is Severity.ERROR else "WARNING"
         loc = f" [{self.source}]" if self.source else ""
         return f"{prefix}{loc}: {self.message}"
 
 
 class Diagnostics:
-    """Coletor mutável de diagnósticos, compartilhado entre os componentes."""
+    """Changeable diagnostics collector, shared between components."""
 
     def __init__(self) -> None:
         self._items: list[Diagnostic] = []
@@ -67,4 +64,4 @@ class Diagnostics:
 
 
 class AsteriaError(Exception):
-    """Erro fatal que interrompe o build imediatamente (ex: YAML inválido)."""
+    """Fatal error that immediately halts the build (e.g., invalid YAML)."""

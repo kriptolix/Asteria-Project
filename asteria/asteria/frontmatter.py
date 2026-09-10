@@ -1,9 +1,5 @@
-"""Interpretação do bloco de front matter padronizado (spec seção 5.2/5.3).
-
-Responsabilidade do SSG (não da biblioteca de conversão): ler o
-``<div class="ssg-frontmatter" data-ssg="frontmatter">...</div>`` produzido
-pelo conversor, extrair os pares chave/valor, aplicar valores padrão e
-remover o bloco do HTML de conteúdo final (ele não deve aparecer na página).
+"""
+Interpretation of the standardized front matter block.
 """
 
 from __future__ import annotations
@@ -11,7 +7,6 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from html import unescape
-from html.parser import HTMLParser
 
 from .errors import Diagnostics
 
@@ -26,6 +21,7 @@ KNOWN_FIELDS = {
     "variant",
     "toc",
     "navigation",
+    "lang",
 }
 
 FRONTMATTER_BLOCK_RE = re.compile(
@@ -47,9 +43,10 @@ class Frontmatter:
     categories: list[str] = field(default_factory=list)
     description: str = ""
     slug: str | None = None
-    variant: str | None = None  # variante de CSS a usar para este documento
-    toc: bool = True  # sumário automático (TOC) desta página; toc:false desativa
-    navigation: bool = False  # sidebar de navegação (nav:); navigation:true ativa
+    variant: str | None = None  
+    toc: bool = True  
+    navigation: bool = False  
+    lang: str | None = None
     extra: dict[str, str] = field(default_factory=dict)
 
     def get(self, key: str, default=None):
@@ -69,8 +66,7 @@ def _parse_bool(value: str | None, default: bool) -> bool:
 def extract_frontmatter(
     html: str, source: str, diagnostics: Diagnostics
 ) -> tuple[Frontmatter, str]:
-    """Retorna (frontmatter, html_sem_o_bloco)."""
-
+    
     match = FRONTMATTER_BLOCK_RE.search(html)
     if not match:
         return Frontmatter(), html
@@ -81,13 +77,13 @@ def extract_frontmatter(
         key = unescape(meta_match.group("key")).strip().lower()
         value = unescape(meta_match.group("value")).strip()
         if key in raw_fields:
-            diagnostics.warning(f"Campo de front matter duplicado: '{key}'.", source=source)
+            diagnostics.warning(f"Duplicate front matter field: '{key}'.", source=source)
         raw_fields[key] = value
 
     for key in raw_fields:
         if key not in KNOWN_FIELDS:
             diagnostics.warning(
-                f"Campo de front matter desconhecido: '{key}' (preservado em extra).",
+                f"Unknown front matter field: '{key}' (preserved in extra).",
                 source=source,
             )
 
@@ -102,6 +98,7 @@ def extract_frontmatter(
         variant=raw_fields.get("variant"),
         toc=_parse_bool(raw_fields.get("toc"), default=True),
         navigation=_parse_bool(raw_fields.get("navigation"), default=False),
+        lang=raw_fields.get("lang") or None,
         extra={k: v for k, v in raw_fields.items() if k not in KNOWN_FIELDS},
     )
 

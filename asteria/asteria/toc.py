@@ -1,8 +1,5 @@
-"""Sumário automático do documento (spec seção 11).
-
-Localiza `<h1>`-`<h6>` no HTML já convertido, injeta `id` estáveis (com
-resolução de colisão) e monta uma árvore aninhada de `TocEntry` respeitando
-os níveis relativos dos títulos (não assume que o documento começa em h1).
+"""
+Automatic document summary.
 """
 
 from __future__ import annotations
@@ -18,8 +15,7 @@ _ID_ATTR_RE = re.compile(r'\sid="[^"]*"', re.IGNORECASE)
 
 
 def inject_heading_ids_and_build_toc(html: str) -> tuple[str, list[TocEntry]]:
-    """Retorna (html_com_ids, árvore_de_toc)."""
-
+    
     used_slugs: dict[str, int] = {}
     flat: list[tuple[int, str, str]] = []
 
@@ -47,6 +43,7 @@ def inject_heading_ids_and_build_toc(html: str) -> tuple[str, list[TocEntry]]:
 
 
 def _build_tree(flat: list[tuple[int, str, str]]) -> list[TocEntry]:
+
     root: list[TocEntry] = []
     stack: list[tuple[int, TocEntry]] = []
 

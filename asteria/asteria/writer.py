@@ -1,12 +1,18 @@
-"""Escrita dos arquivos finais e cópia de assets (spec seção 22, 26 passo 13/16)."""
+"""Writing the final files and copying assets."""
 
 from __future__ import annotations
 
+import hashlib
 import shutil
 from pathlib import Path
 
 from .config import SiteConfig
 from .converter import ExtractedImage
+
+
+FINGERPRINT_SUBDIRS: tuple[str, ...] = ("css", "js", "fonts", "images")
+
+_HASH_LENGTH = 10
 
 
 def write_page(output_dir: Path, relative_path: str, html: str) -> Path:
@@ -24,7 +30,7 @@ def write_text_file(output_dir: Path, relative_path: str, content: str) -> Path:
 
 
 def copy_static_assets(config: SiteConfig) -> None:
-    """Copia static/ (assets do site) e theme/<nome>/css|js (assets do tema)."""
+    
     output_dir = config.output_dir
 
     if config.static_dir.exists():
@@ -54,16 +60,41 @@ def _copy_tree(src: Path, dst: Path, exclude: set[str] | None = None) -> None:
 def write_document_images(
     output_dir: Path, images: list[ExtractedImage], subdir: str = ""
 ) -> None:
-    """Grava as imagens de um documento dentro do seu próprio diretório de
-    saída (`subdir`, geralmente derivado de `urls.url_to_output_dir`), para
-    que fiquem ao lado do `index.html` da página/post, não em uma pasta
-    `/images/` global.
-    """
+    
     target_dir = output_dir / subdir if subdir else output_dir
     for image in images:
         target = target_dir / image.output_name
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(image.data)
+
+
+def _content_hash(path: Path, length: int = _HASH_LENGTH) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()[:length]
+
+
+def fingerprint_assets(
+    output_dir: Path, subdirs: tuple[str, ...] = FINGERPRINT_SUBDIRS
+) -> dict[str, str]:
+   
+    manifest: dict[str, str] = {}
+
+    for subdir in subdirs:
+        base = output_dir / subdir
+        if not base.exists():
+            continue
+        
+        # Materialize the list before renaming, to avoid iterating over a
+        # directory that is being modified.
+        for file_path in sorted(p for p in base.rglob("*") if p.is_file()):
+            digest = _content_hash(file_path)
+            new_path = file_path.with_name(f"{file_path.stem}.{digest}{file_path.suffix}")
+            file_path.replace(new_path)
+
+            original_rel = "/" + file_path.relative_to(output_dir).as_posix()
+            fingerprinted_rel = "/" + new_path.relative_to(output_dir).as_posix()
+            manifest[original_rel] = fingerprinted_rel
+
+    return manifest
 
 
 def clean_output(config: SiteConfig) -> None:
@@ -72,22 +103,23 @@ def clean_output(config: SiteConfig) -> None:
 
 
 def copy_raw_pages(output_dir: Path, raw_pages: list) -> None:
-    """Copia cada pasta de página HTML "crua" verbatim para a saída, num
-    diretório próprio isolado (ver `asteria.raw`). Nada é reescrito ou
-    processado — é exatamente o que o usuário colocou em `content/raw/`.
-    """
+   
     for page in raw_pages:
         target_dir = output_dir / page.url.strip("/")
         _copy_tree(page.source_dir, target_dir, exclude={"raw.yaml"})
 
 
 def list_generated_files(output_dir: Path) -> list[str]:
-    """Lista relativa de todos os arquivos gerados (spec 14 — 'relatório de
-    arquivos gerados')."""
+    
     if not output_dir.exists():
         return []
-    return sorted(
-        str(p.relative_to(output_dir))
-        for p in output_dir.rglob("*")
-        if p.is_file()
-    )
+
+    files = []
+
+    for path in output_dir.rglob("*"):
+        if path.is_file():
+            relative_path = path.relative_to(output_dir)
+            files.append(str(relative_path))
+
+    return sorted(files)
+

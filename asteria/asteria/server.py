@@ -1,19 +1,5 @@
-"""Servidor de desenvolvimento local (`asteria serve`, spec seção 23-24).
-
-Gera o site, serve `output/` via HTTP, observa `content/`, `static/`,
-`theme/` e `site.yaml` (via `watchfiles`, dependência padrão) e reconstrói
-automaticamente a cada mudança. **Live reload no navegador é o padrão**:
-as páginas geradas ganham um pequeno script que escuta um endpoint de
-Server-Sent Events e recarrega a aba sozinha depois de cada rebuild — sem
-precisar de nenhuma dependência JS externa, só um endpoint HTTP simples
-implementado com a biblioteca padrão do Python.
-
-Páginas HTML "cruas" (`asteria/raw.py`) **nunca** recebem esse script — a
-garantia de que elas são servidas exatamente como o autor escreveu
-continua valendo em `serve`, não só em `build`.
-
-`--no-watch` desativa tanto o rebuild automático quanto o live reload
-(não faz sentido injetar o script se nada nunca vai notificá-lo).
+"""
+Local development server.
 """
 
 from __future__ import annotations
@@ -51,11 +37,11 @@ def _print_result(result, prefix: str = "Build") -> None:
     for diag in result.diagnostics:
         print(diag)
     if result.success:
-        print(f"{prefix} ok ({len(result.generated_files)} arquivo(s)).")
+        print(f"{prefix} ok ({len(result.generated_files)} file(s)).")
     else:
         print(
-            f"{prefix} com {len(result.diagnostics.errors)} erro(s) — "
-            "servindo o que já existe em disco.",
+            f"{prefix} com {len(result.diagnostics.errors)} error(s) — "
+            "serving what already exists on disk.",
             file=sys.stderr,
         )
 
@@ -68,15 +54,15 @@ def _run_build_safe(project_root: Path, converter_name: str, prefix: str, live_r
             live_reload_script=live_reload_script,
         )
     except AsteriaError as exc:
-        print(f"ERRO FATAL: {exc}", file=sys.stderr)
+        print(f"FATAL ERROR: {exc}", file=sys.stderr)
         return None
     _print_result(result, prefix=prefix)
     return result
 
 
 class ReloadBroadcaster:
-    """Contador de gerações + condição, usado pelos handlers SSE para saber
-    quando um novo rebuild aconteceu (spec 24: "detectar alterações")."""
+    """Generation counter + condition, used by SSE handlers to determine
+        when a new rebuild has occurred.."""
 
     def __init__(self) -> None:
         self._condition = threading.Condition()
@@ -100,11 +86,10 @@ class ReloadBroadcaster:
 
 
 class _DevServerHandler(http.server.SimpleHTTPRequestHandler):
-    """Serve arquivos estáticos normalmente, mais um endpoint SSE para o
-    live reload. O broadcaster fica no `self.server` (ver `_Server` abaixo)
-    para não depender de estado global."""
+    """Serves static files normally, plus an SSE endpoint for
+        live reload."""
 
-    def do_GET(self) -> None:  # noqa: N802 (nome exigido pela stdlib)
+    def do_GET(self) -> None:  # noqa: N802 (name required by the stdlib)
         if self.path == LIVE_RELOAD_ENDPOINT:
             self._handle_sse()
             return
@@ -133,7 +118,7 @@ class _DevServerHandler(http.server.SimpleHTTPRequestHandler):
 
     def log_message(self, format: str, *args) -> None:  # noqa: A002
         if args and "__asteria_live_reload__" in str(args[0]):
-            return  # não poluir o log com a conexão SSE de longa duração
+            return  # avoid cluttering the log with the long-lived SSE connection
         sys.stderr.write(f"  {self.address_string()} - {args[0] if args else ''}\n")
 
 
@@ -165,16 +150,16 @@ def serve(
     try:
         httpd = _start_http_server(result.output_dir, host, port)
     except OSError as exc:
-        print(f"ERRO: não foi possível abrir {host}:{port} — {exc}", file=sys.stderr)
+        print(f"ERROR: could not open {host}:{port} — {exc}", file=sys.stderr)
         return 1
 
     thread = threading.Thread(target=httpd.serve_forever, daemon=True)
     thread.start()
 
-    print(f"\nServindo em http://{host}:{port}/ (Ctrl+C para sair)")
+    print(f"\nServing at http://{host}:{port}/ (Ctrl+C to exit)")
 
     if not watch:
-        print("Rebuild automático e live reload desativados (--no-watch).")
+        print("Automatic rebuild and live reload disabled (--no-watch).")
         _idle_until_interrupted()
         httpd.shutdown()
         return 0
@@ -190,7 +175,7 @@ def serve(
         if p.exists()
     ]
     if not watch_paths:
-        print("Nada para observar (content/static/theme/site.yaml não encontrados).")
+        print("Nothing to observe (content/static/theme/site.yaml not found).")
         _idle_until_interrupted()
         httpd.shutdown()
         return 0
@@ -198,11 +183,11 @@ def serve(
     from watchfiles import watch as watchfiles_watch
 
     watched_names = ", ".join(str(p.relative_to(project_root)) for p in watch_paths)
-    print(f"Observando mudanças em: {watched_names} (live reload ativo)\n")
+    print(f"Watching for changes in: {watched_names} (live reload active)\n")
 
     try:
         for changes in watchfiles_watch(*watch_paths):
-            print(f"\n{len(changes)} mudança(s) detectada(s), reconstruindo...")
+            print(f"\n{len(changes)} change(s) detected, rebuilding...")
             rebuilt = _run_build_safe(project_root, converter_name, "Rebuild", live_reload_script)
             if rebuilt is not None:
                 httpd.broadcaster.notify_reload()  # type: ignore[attr-defined]

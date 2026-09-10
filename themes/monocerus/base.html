@@ -23,12 +23,10 @@
 <body>
     <header class="site-header">
         <div class="site-header__inner">
-            <div>
-                <a class="site-title" href="/">{{ site.title }}</a>
-                {% if theme.subtitulo %}
-                <p class="site-subtitle">{{ theme.subtitulo }}</p>
-                {% endif %}
-            </div>
+            <a class="site-title-block" href="/">
+                {% if theme.subtitulo %}<span class="site-tagline">{{ theme.subtitulo }}</span>{% endif %}
+                <span class="site-wordmark">{{ site.title }}</span>
+            </a>
             <nav class="site-menu">
                 <ul>
                     {% for item in theme.menu %}
@@ -44,7 +42,7 @@
         {% block sidebar %}
         {% if show_navigation %}
         <aside class="sidebar-nav">
-            <h2>Navegação</h2>
+            <h2>Índice</h2>
             {{ navmacros.render_nav(theme.nav, canonical_path) }}
         </aside>
         {% endif %}
@@ -54,7 +52,7 @@
             {% if breadcrumbs and breadcrumbs|length > 1 %}
             <nav class="breadcrumbs" aria-label="breadcrumbs">
                 {% for crumb in breadcrumbs %}
-                {% if not loop.last %}<a href="{{ crumb.url }}">{{ crumb.title }}</a><span class="breadcrumbs__sep">/</span>
+                {% if not loop.last %}<a href="{{ crumb.url }}">{{ crumb.title }}</a><span class="breadcrumbs__sep">&raquo;</span>
                 {% else %}<span class="breadcrumbs__current">{{ crumb.title }}</span>{% endif %}
                 {% endfor %}
             </nav>
@@ -64,12 +62,14 @@
     </div>
 
     <footer class="site-footer">
+        {% if theme.selo %}
+        <div class="seal-badge" role="img" aria-label="{{ theme.selo }}">{{ theme.selo }}</div>
+        {% endif %}
         {% if theme.social %}
         <div class="social-links">
             {% for item in theme.social %}
-            <a href="{{ item.url }}" class="social-link" aria-label="{{ item.label }}" title="{{ item.label }}"
-                rel="me noopener">
-                <img src="images/{{ item.label | lower }}.svg" alt="{{ item.label }}">
+            <a href="{{ item.url }}" class="social-link" aria-label="{{ item.label }}" title="{{ item.label }}" rel="me noopener">
+                <img src="/images/{{ item.label | lower }}.svg" alt="{{ item.label }}">
             </a>
             {% endfor %}
         </div>

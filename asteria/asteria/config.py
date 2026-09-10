@@ -1,10 +1,10 @@
-"""Leitura de `site.yaml` — configurações do SSG, estrutura fixa e sempre
-presente, com defaults sensatos.
+"""
+Reads SSG configurations from `site.yaml` and merges them with the defaults.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -14,29 +14,38 @@ from .errors import AsteriaError
 
 DEFAULTS: dict[str, Any] = {
     "site": {
-        "title": "Meu Site",
+        "title": "My Site",
         "description": "",
         "url": "http://localhost:8000",
-        "language": "pt-BR",
-        "home_page": "inicio",  # id da página usada como index.html
+        "language": "en",
+        "home_page": "welcome",  # id da página usada como index.html
     },
     "content": {
         "pages": "content/pages",
         "posts": "content/posts",
     },
     "output": {
-        "directory": "build",
+        "directory": "../result",
     },
     "static": {
         "directory": "static",
     },
     "theme": {
         "name": "minimal",
-        "directory": "theme",
+        "directory": "themes",
     },
     "blog": {
         "posts_per_page": 10,
         "url_prefix": "blog",
+        "excerpt_enabled": True,
+        "excerpt_length": 280,
+    },
+    "i18n": {        
+        "languages": [],        
+        "default_language": "en",
+    },
+    "assets": {        
+        "fingerprint": True,
     },
     "urls": {
         "pages": "/pages/{slug}/",
@@ -71,12 +80,11 @@ def _deep_merge(base: dict, override: dict) -> dict:
 
 @dataclass
 class SiteConfig:
-    """Configuração do site, já mesclada com os padrões."""
+    """Site configuration, already merged with the standards."""
 
     data: dict[str, Any]
     root: Path
-
-    # --- acessores convenientes -------------------------------------------------
+    
     @property
     def title(self) -> str:
         return self.data["site"]["title"]
@@ -95,9 +103,10 @@ class SiteConfig:
 
     @property
     def home_page(self) -> str:
-        """Identificador da 'home': o `id` de uma página, ou a palavra
-        especial 'blog' para usar a primeira página do índice do blog
-        como conteúdo de `/`."""
+        """
+        Home identifier: the `id` of a page, or the word 
+        special 'blog'
+        """
         return self.data["site"].get("home_page", "inicio")
 
     @property
@@ -122,30 +131,50 @@ class SiteConfig:
 
     @property
     def theme_dir(self) -> Path:
-        """Diretório efetivo do tema a usar.
+        
+        project_theme = self.root / "themes" / self.theme_name        
 
-        Se o projeto tiver sua própria pasta `theme/<nome>/`, ela é usada
-        (permite customizar/sobrescrever completamente). Caso contrário,
-        cai para o tema mínimo embutido no pacote Asteria
-        (`asteria/themes/<nome>/`), que serve como tema padrão pronto para
-        uso sem exigir que todo projeto crie o seu.
-        """
-        project_theme = self.root / self.data["theme"]["directory"] / self.theme_name
         if project_theme.exists():
             return project_theme
 
-        bundled_theme = Path(__file__).parent / "themes" / self.theme_name
+        bundled_theme = Path(__file__).parent / "site" / "source" / "themes" / "minimal"
         return bundled_theme
 
     @property
     def theme_source(self) -> str:
-        """'project' ou 'bundled' — útil para diagnósticos/CLI."""
-        project_theme = self.root / self.data["theme"]["directory"] / self.theme_name
+        """'project' ou 'bundled' — useful for diagnostics/CLI."""
+
+        project_theme = self.root / self.data["themes"]["directory"] / self.theme_name
         return "project" if project_theme.exists() else "bundled"
 
     @property
     def posts_per_page(self) -> int:
         return int(self.data["blog"]["posts_per_page"])
+
+    @property
+    def excerpt_enabled(self) -> bool:
+        return self.data["blog"]["excerpt_enabled"]
+
+    @property
+    def excerpt_length(self) -> int:
+        return int(self.data["blog"]["excerpt_length"])
+
+    @property
+    def default_language(self) -> str:
+        
+        return self.data["i18n"].get("default_language") or self.language
+
+    @property
+    def languages(self) -> list[str]:
+        """All languages ​​supported by the site, including the default."""
+
+        default = self.default_language
+        extra = [lang for lang in (self.data["i18n"].get("languages") or []) if lang != default]
+        return [default, *extra]
+
+    @property
+    def fingerprint_assets_enabled(self) -> bool:
+        return bool(self.data.get("assets", {}).get("fingerprint", True))
 
     @property
     def blog_prefix(self) -> str:
@@ -174,15 +203,15 @@ class SiteConfig:
 
 def load_config(config_path: Path) -> SiteConfig:
     if not config_path.exists():
-        raise AsteriaError(f"Arquivo de configuração não encontrado: {config_path}")
+        raise AsteriaError(f"Configuration file not found: {config_path}")
 
     try:
         raw = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
     except yaml.YAMLError as exc:
-        raise AsteriaError(f"YAML inválido em {config_path}: {exc}") from exc
+        raise AsteriaError(f"Invalid YAML in {config_path}: {exc}") from exc
 
     if not isinstance(raw, dict):
-        raise AsteriaError(f"O conteúdo de {config_path} deve ser um mapeamento YAML.")
+        raise AsteriaError(f"The content of {config_path} must be a YAML mapping.")
 
     merged = _deep_merge(DEFAULTS, raw)
     return SiteConfig(data=merged, root=config_path.parent.resolve())

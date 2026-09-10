@@ -1,14 +1,5 @@
-"""Gerador de arquivos `.odt` mínimos e válidos, só com a biblioteca
-padrão do Python (zipfile + XML) — sem depender do LibreOffice nem de
-nenhuma lib de terceiros.
-
-Usado por `asteria new` para criar o conteúdo inicial de um projeto (a
-página de boas-vindas), e também é a base do gerador de conteúdo de
-exemplo usado nos testes e no site de demonstração (`examples/meu-site`).
-
-Não é (nem pretende ser) um substituto para o LibreOffice Writer — é só
-o suficiente para produzir um `.odt` estruturalmente válido a partir de
-uma lista de blocos simples (títulos, parágrafos, listas).
+"""
+Generator for minimal, valid `.odt` files. Legacy.
 """
 
 from __future__ import annotations

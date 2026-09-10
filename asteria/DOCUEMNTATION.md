@@ -7,15 +7,14 @@ Asteria is a Python Static Site Generator (SSG) whose only content source is ODT
 A typical project contains:
 
 my-site/
-├── site.yaml
-├── content/
-│   ├── pages/
-│   └── posts/
-├── static/
-├── theme/
-│   └── minimal/
-└── build/
-
+├── source
+|   ├── content
+|   │   ├── pages    
+|   │   └── posts    
+|   ├── site.yaml
+|   └── themes
+|       └── minimal
+└── results
 
 The Python package itself is organized as follows:
 
@@ -210,10 +209,13 @@ nav:
 social:
   - platform: github
     url: "https://github.com/user"
+    label: Github
   - platform: mastodon
     url: "https://mastodon.social/@user"
+    label: Mastodon
   - platform: email
     url: "mailto:contact@example.com"
+    label: E-mail
 
 menu
 
@@ -265,7 +267,6 @@ gitlab
 twitter
 x
 mastodon
-linkedin
 youtube
 instagram
 facebook
@@ -275,9 +276,8 @@ rss
 email
 
 
-Recognized platforms receive a built-in monogram SVG. Unknown platforms use a generic monogram based on their initials.
+Recognized platforms receive a built-in SVG images. 
 
-The icons are original drawings rather than copies of official platform logos.
 
 6. Document References
 
@@ -625,7 +625,6 @@ Tests cover the build pipeline, configuration, content discovery, references, na
 The following features are not currently implemented:
 
 Drafts (draft: true) with an option such as --drafts.
-Syntax highlighting for code blocks.
 Redirects from old URLs to new URLs.
 i18n / multilingual sites.
 Asset fingerprinting for cache busting.

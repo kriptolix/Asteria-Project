@@ -1,20 +1,16 @@
-"""Cache de conversão incremental (spec seção 25 — "build incremental, se
-viável").
+"""Incremental conversion cache.
 
-Escopo deliberado: o cache guarda o resultado da conversão ODT→HTML de
-cada documento (o passo mais caro do pipeline — é aqui que o odt2web faz
-o trabalho real de parsing) entre execuções, keyed por caminho + mtime +
-tamanho do arquivo fonte. Se um `.odt` não mudou desde o último build, a
-conversão é pulada e o resultado anterior é reaproveitado.
+The cache stores the result of the ODT→HTML conversion for
+each document (the most expensive step in the pipeline—this is where odt2web
+performs the actual parsing work) across runs, keyed by path, mtime,
+and source file size. If an `.odt` file hasn't changed since the last build,
+the conversion is skipped and the previous result is reused.
 
-Tudo o que depende de múltiplos documentos ao mesmo tempo — referências
-`[[id]]`, TOC, `nav:`, taxonomias, paginação do blog, sitemap, feed,
-renderização de templates — continua rodando por completo em **todo**
-build, mesmo incremental. Isso evita bugs sutis de dado desatualizado
-(ex: um post novo precisa recalcular o "anterior/próximo" do post que
-antes era o mais recente, mesmo que o *conteúdo* dele não tenha mudado) —
-o preço de correção é não pular essas etapas, que também são bem mais
-baratas que a conversão ODT em si.
+Anything that depends on multiple documents simultaneously—`[[id]]`
+references, TOCs, `nav:`, taxonomies, blog pagination, sitemaps, feeds,
+and template rendering—continues to run fully during **every**
+build, even incremental ones. This prevents subtle bugs caused by
+stale data.
 """
 
 from __future__ import annotations
@@ -57,7 +53,7 @@ def save_cache(project_root: Path, entries: dict[str, Any]) -> None:
             encoding="utf-8",
         )
     except OSError:
-        pass  # o cache é só uma otimização — falhar ao salvar não deve quebrar o build
+        pass  # The cache is just an optimization—failing to save it shouldn't break the build.
 
 
 def clear_cache(project_root: Path) -> bool:
@@ -114,17 +110,17 @@ def _entry_to_result(entry: dict[str, Any]) -> ConversionResult:
         html=entry["html"],
         images=images,
         converter_name=entry.get("converter_name", "cache"),
-        # Front matter é sempre extraído do HTML (ver asteria.frontmatter),
-        # então não precisa ser recalculado nem cacheado separadamente.
+        # Front matter is always extracted from the HTML (see asteria.frontmatter),
+        # so it does not need to be recalculated or cached separately.
         metadata=None,
     )
 
 
 class CachingConverter(ODTConverter):
-    """Envolve qualquer `ODTConverter` com um cache incremental em disco.
+    """Wraps any `ODTConverter` with an incremental disk cache. 
 
-    `entries` é mutado in-place — quem cria este objeto é responsável por
-    persistir com `save_cache()` depois do build (ver `asteria.build`).
+    `entries` is mutated in-place—the object's creator is responsible for
+    persisting it using `save_cache()` after the build (see `asteria.build`).
     """
 
     name = "cached"

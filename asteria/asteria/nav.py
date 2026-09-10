@@ -1,46 +1,5 @@
-"""Navegação hierárquica configurável — formato inspirado no `nav:` do
-MkDocs Material (comportamento verificado como referência).
-
-No MkDocs, cada item de `nav:` é:
-
-- uma string solta (`- index.md`) → um link cujo título vem do próprio
-  arquivo (H1/front matter), não de um nome escrito no `nav:`;
-- um mapeamento de uma chave (`- Título: caminho.md`) → um link com título
-  explícito;
-- um mapeamento cujo valor é uma lista (`- Título: [...]`) → uma **seção**
-  (o "Título" é só um rótulo de agrupamento, não necessariamente um link).
-
-O Asteria segue exatamente esse mesmo formato YAML, só trocando "caminho de
-arquivo" por **`id`** (mesma convenção de `[[id]]`), já que documentos no
-Asteria são endereçados por id, não por caminho:
-
-    nav:
-      - inicio                       # título vem do próprio documento
-      - Início: inicio                 # título explícito
-      - Sob um Céu Estranho:
-          - sob-um-ceu-estranho         # ↓ ver "página-índice de seção" abaixo
-          - basico
-          - Nave:
-              - nave
-          - Personagens:
-              - personagens              # também vira a página-índice de "Personagens"
-              - Arquétipos:
-                  - arquetipos
-                  - o-cientista
-              - aspectos
-
-**Página-índice de seção**: no MkDocs, uma seção "ganha" um link próprio
-quando o primeiro item dos seus filhos é o `index.md` da mesma pasta. Sem
-pastas por documento no Asteria, a convenção equivalente é posicional: se o
-**primeiro item** dentro de uma seção for uma string solta (um id, não uma
-subseção), esse id vira o link do próprio título da seção — o item some da
-listagem de filhos (o título já aponta pra ele) exatamente como o MkDocs
-faz com `index.md`. Para uma seção **sem** página própria (só um
-agrupamento), simplesmente não coloque um id solto como primeiro filho.
-
-Cada seção é renderizada como um elemento colapsável (`<details>`); o ramo
-que contém a página atual abre automaticamente, os demais começam
-fechados — não há necessidade de configurar isso manualmente.
+"""
+Configurable hierarchical navigation
 """
 
 from __future__ import annotations
@@ -64,7 +23,7 @@ def _resolve(
     target = registry.get(page_id)
     if target is None:
         diagnostics.warning(
-            f"nav: item referencia id inexistente: '{page_id}'.", source="site.yaml"
+            f"nav: Non-existent item reference ID: '{page_id}'.", source="site.yaml"
         )
         return NavEntry(title=title_override or page_id, url=None)
     return NavEntry(title=title_override or target.title, url=target.url)
@@ -76,7 +35,7 @@ def _resolve_url_only(
     target = registry.get(page_id)
     if target is None:
         diagnostics.warning(
-            f"nav: item referencia id inexistente: '{page_id}'.", source="site.yaml"
+            f"nav: Non-existent item reference ID: '{page_id}'.", source="site.yaml"
         )
         return None
     return target.url
@@ -94,7 +53,7 @@ def _parse_items(
 
         if not isinstance(raw, dict) or len(raw) != 1:
             diagnostics.warning(
-                f"nav: item mal formado, ignorado: {raw!r}", source="site.yaml"
+                f"nav: malformed item, ignored: {raw!r}", source="site.yaml"
             )
             continue
 
@@ -106,8 +65,8 @@ def _parse_items(
             children_raw = list(value)
             own_url: str | None = None
 
-            # Convenção de "página-índice de seção": primeiro filho solto
-            # (string) vira o link do título da seção, e some da listagem.
+            # "Section index page" convention: first standalone child
+            # (string) becomes the section title link and disappears from the list.
             if children_raw and isinstance(children_raw[0], str):
                 own_url = _resolve_url_only(children_raw[0], registry, diagnostics)
                 children_raw = children_raw[1:]
@@ -116,7 +75,7 @@ def _parse_items(
             result.append(NavEntry(title=title, url=own_url, children=children))
         else:
             diagnostics.warning(
-                f"nav: valor inválido para '{title}' (esperado id ou lista).",
+                f"nav: invalid value for '{title}' (expected ID or list).",
                 source="site.yaml",
             )
 

@@ -1,15 +1,15 @@
 site:
-  title: "Meu Site"
+  title: "My Site"
   description: ""
   url: "http://localhost:8000"
-  language: "pt-BR"
-  home_page: "bem-vindo"
+  language: "en"
+  home_page: "welcome"
 
 theme:
     name: "minimal"
 
-# Menu, navegação, links sociais e outras configurações de apresentação
-# ficam em themes/minimal/theme.yaml (namespace próprio do tema) — não
-# aqui. Mais opções deste arquivo (feeds, taxonomias, urls, etc.) têm
-# valores padrão razoáveis e não precisam ser configuradas agora — veja o
-# DOCUMENTATION do Asteria para exemplos completos.
+# Menu, navigation, social links, and other presentation settings
+# are located in themes/<name>/theme.yaml (the theme's own namespace), not
+# here. More options in this file (feeds, taxonomies, URLs, etc.) have
+# reasonable default values ​​and don't need to be configured now. See the
+# Asteria DOCUMENTATION for complete examples.

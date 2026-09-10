@@ -1,4 +1,4 @@
-"""Geração de sitemap.xml (spec seção 14 — SEO e distribuição)."""
+"""sitemap.xml generation."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from html import escape
 @dataclass
 class SitemapEntry:
     path: str  # ex: "/blog/artigo/"
-    lastmod: str | None = None  # "YYYY-MM-DD", se disponível
+    lastmod: str | None = None  # "YYYY-MM-DD", if available
 
 
 def render_sitemap(entries: list[SitemapEntry], site_url: str) -> str:

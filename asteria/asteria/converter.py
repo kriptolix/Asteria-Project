@@ -1,5 +1,5 @@
 """
-Camada de conversão ODT → HTML.
+ODT → HTML conversion layer.
 """
 
 from __future__ import annotations
@@ -29,23 +29,24 @@ ODT_NS = {
 
 @dataclass
 class ExtractedImage:
-    """Uma imagem incorporada no ODT que precisa ser copiada para o output."""
+    """An image embedded in the ODT that needs to be copied to the output."""
 
-    original_path: str  # caminho dentro do .odt, ex: Pictures/100000.png
+    original_path: str  
     data: bytes
-    output_name: str  # nome de arquivo final, ex: doc-slug-img1.png
+    output_name: str  
 
 
 @dataclass
 class ConversionResult:
-    """Resultado padronizado de qualquer conversor ODT→HTML.
+    """
+    Standardized output from any ODT→HTML converter. 
 
-    ``metadata``: quando o próprio conversor já reconhece e extrai o bloco
-    de front matter (caso do odt2web, via ``result.metadata``), ele é
-    exposto aqui já normalizado como ``Frontmatter`` e o SSG não precisa
-    procurar o bloco ``div.ssg-frontmatter`` no HTML. Quando ``None``
-    (caso do FallbackConverter), o SSG cai no comportamento descrito na
-    spec seção 5.2: procurar o bloco padronizado dentro do próprio HTML.
+    ``metadata``: when the converter itself recognizes and extracts the
+    front matter block (as with odt2web, via ``result.metadata``), it is
+    exposed here already normalized as ``Frontmatter``, and the SSG does not
+    need to look for the ``div.ssg-frontmatter`` block in the HTML. When
+    ``None`` (as with FallbackConverter), the SSG looks for the standardized
+    block within the HTML.
     """
 
     html: str
@@ -55,49 +56,18 @@ class ConversionResult:
 
 
 class ODTConverter(ABC):
-    """Interface que qualquer biblioteca de conversão deve satisfazer."""
-
+    
     name: str = "base"
 
     @abstractmethod
     def convert(self, odt_path: Path, diagnostics: Diagnostics) -> ConversionResult:
-        """Converte um arquivo .odt em um ``ConversionResult``."""
+        
         raise NotImplementedError
 
 
 class Odt2WebConverter(ODTConverter):
-    """Adapter para ``odt2web`` (biblioteca própria do usuário, já existente).
-
-    Comportamento real confirmado pelo usuário:
-
-    - Com ``output_dir=<pasta>``, o odt2web grava ``index.html`` e
-      ``style.css`` na pasta e as imagens em ``<pasta>/assets/``.
-    - ``document=False`` faz o HTML gerado ser só o fragmento de conteúdo
-      (sem `<html>`/`<head>`), que é o que o Asteria precisa para injetar
-      dentro dos próprios templates do tema.
-    - O odt2web reconhece o bloco de metadados (`--- chave: valor ... ---`)
-      e o materializa como o HTML padronizado da spec (seção 5.2) —
-      ``<div class="ssg-frontmatter" data-ssg="frontmatter">...</div>`` —
-      dentro do próprio ``result.html``, em vez de (ou além de) um objeto
-      ``result.metadata`` separado. Por isso o Asteria **não** tenta ler
-      ``result.metadata`` diretamente: sempre extrai o front matter do HTML
-      via ``asteria.frontmatter.extract_frontmatter`` (o mesmo caminho usado
-      pelo ``FallbackConverter``, hoje restrito a testes), que é o contrato
-      público real da spec.
-    - ``allow_raw_html=True``: permite ao autor incluir trechos de HTML cru
-      diretamente no corpo do documento ODT (recurso do odt2web), útil para
-      casos que não cabem no vocabulário de formatação do LibreOffice sem
-      precisar recorrer a uma página HTML "crua" inteira (ver
-      ``asteria/raw.py``).
-
-    Por isso o Asteria pede ao odt2web para gravar em um diretório
-    temporário (``output_dir``) e lê os arquivos de imagem de volta do
-    disco (``assets/``), em vez de depender do shape de ``Asset`` em
-    memória. Isso é mais robusto e bate com o comportamento comprovado via
-    CLI (``odt2web arquivo.odt -o dist/``).
-
-    ``result.css`` continua ignorado por decisão de produto (o CSS do tema
-    cuida do layout, não o documento) — por isso passamos ``css=False``.
+    """
+    Adapter for ``odt2web``.
     """
 
     name = "odt2web"
@@ -107,8 +77,7 @@ class Odt2WebConverter(ODTConverter):
             from odt2web import convert  # type: ignore
         except ImportError as exc:  # pragma: no cover - depende do ambiente
             raise ImportError(
-                "A biblioteca 'odt2web' não está instalada. Instale-a ou "
-                "use --converter fallback para desenvolvimento."
+                "The 'odt2web' library is not installed."
             ) from exc
         self._convert = convert
 
@@ -131,11 +100,11 @@ class Odt2WebConverter(ODTConverter):
             for warning in getattr(result, "warnings", None) or []:
                 diagnostics.warning(_stringify(warning), source=str(odt_path))
 
-            images, html = self._collect_assets_from_disk(tmp_dir, odt_path, html)
+            images, html = self._collect_assets_from_disk(tmp_dir, html)
 
-            # Front matter vem embutido no HTML (div.ssg-frontmatter), não
-            # em result.metadata — deixamos metadata=None para que
-            # discovery.py sempre use extract_frontmatter(html) aqui também.
+            # Front matter is embedded in the HTML (div.ssg-frontmatter), not
+            # in result.metadata — we leave metadata=None so that
+            # discovery.py always uses extract_frontmatter(html) here as well.
             return ConversionResult(
                 html=html,
                 images=images,
@@ -144,14 +113,9 @@ class Odt2WebConverter(ODTConverter):
             )
 
     def _collect_assets_from_disk(
-        self, tmp_dir: Path, odt_path: Path, html: str
+        self, tmp_dir: Path, html: str
     ) -> tuple[list[ExtractedImage], str]:
-        """Lê os arquivos gravados pelo odt2web em ``<tmp_dir>/assets/`` e
-        reescreve as referências correspondentes no HTML para caminhos
-        relativos simples (a imagem é gravada no mesmo diretório de saída
-        do documento — ver ``asteria.writer.write_document_images`` —, não
-        em uma pasta ``/images/`` compartilhada).
-        """
+        
         assets_dir = tmp_dir / "assets"
         images: list[ExtractedImage] = []
         if not assets_dir.exists():
@@ -181,15 +145,9 @@ def _stringify(warning: Any) -> str:
 
 
 class FallbackConverter(ODTConverter):
-    """Conversor mínimo, apenas com a biblioteca padrão do Python.
-
-    **Restrito a testes** — não é mais usado automaticamente em produção
-    (o Asteria agora exige `odt2web`, que está totalmente integrado).
-    Existe só para permitir testar o resto do pipeline sem precisar da lib
-    externa instalada. Cobre: parágrafos, títulos (h1-h6 a partir de
-    outline-level), negrito
-    /itálico/sublinhado básicos, listas, tabelas simples, links, imagens e o
-    bloco de front matter textual (seção 5.1 da spec).
+    """
+    Minimal converter, using only the Python standard library. 
+    **For testing purposes only**
     """
 
     name = "fallback"
@@ -395,12 +353,7 @@ class FallbackConverter(ODTConverter):
 
 
 def get_converter(preferred: str = "auto") -> ODTConverter:
-    """Fábrica: escolhe o conversor a usar.
-
-    ``preferred``: "odt2web" (ou "auto", que hoje é equivalente — o
-    Asteria exige `odt2web` em produção) ou "fallback" (restrito a testes,
-    não exposto pela CLI).
-    """
+    
     if preferred == "fallback":
         return FallbackConverter()
 
@@ -408,5 +361,5 @@ def get_converter(preferred: str = "auto") -> ODTConverter:
         return Odt2WebConverter()
     except ImportError as exc:
         raise AsteriaError(
-            "A biblioteca 'odt2web' não está instalada. Instale-a com "            
+            "The 'odt2web' library is not installed."            
         ) from exc

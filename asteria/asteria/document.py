@@ -1,14 +1,11 @@
-"""Modelo de documento exposto aos templates (spec seção 19).
-
-`Document` é a base comum entre `Page` e `Post`. Os atributos aqui formam o
-"modelo de dados para templates": os temas nunca devem depender de
-implementação interna do compilador, apenas destes campos.
+"""
+Document model exposed to templates.
+`Document` is the common base between `Page` and `Post`.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import date as date_type
 from pathlib import Path
 
 from .converter import ExtractedImage
@@ -25,15 +22,14 @@ class TocEntry:
 
 
 @dataclass
-class Document:
-    """Campos comuns a páginas e posts."""
+class Document:    
 
-    id: str  # nome do arquivo sem extensão — identificador único (spec 6)
-    kind: str  # "page" ou "post"
+    id: str  # filename without extension — unique identifier
+    kind: str  # "page" or "post"
     source_path: Path
     frontmatter: Frontmatter
-    content_html: str  # HTML final (sem o bloco de frontmatter, refs resolvidas)
-    raw_content_html: str  # HTML logo após a conversão, antes de resolver refs
+    content_html: str  # Final HTML final
+    raw_content_html: str  # HTML before resolve refs
 
     slug: str = ""
     url: str = ""
@@ -42,12 +38,22 @@ class Document:
 
     previous: "Document | None" = None
     next: "Document | None" = None
+    manual_excerpt: str | None = None
+    excerpt_length: int = 280
+    excerpt_enabled: bool = True
+
+    # -- i18n -----------------------------------------------------------
+    lang: str = ""    
+    translation_key: str = ""    
+    translations: dict[str, "Document"] = field(default_factory=dict, repr=False)
 
     def __post_init__(self) -> None:
-        if not self.slug:
-            self.slug = self.frontmatter.slug or slugify(self.id)
+        if not self.translation_key:
+            self.translation_key = self.id
+        if not self.slug:            
+            self.slug = self.frontmatter.slug or slugify(self.translation_key)
 
-    # -- propriedades expostas aos templates (spec 19) -----------------------
+    
     @property
     def title(self) -> str:
         return self.frontmatter.title or self.id
@@ -74,22 +80,19 @@ class Document:
 
     @property
     def variant(self) -> str | None:
-        """Variante de CSS a usar para este documento (ex: 'dark'), ou
-        None para usar a variante padrão do site (`theme.default_variant`
-        em `site.yaml`)."""
+        """CSS variant to use for this document (e.g., 'dark'), or
+        None to use the site's default variant."""
         return self.frontmatter.variant
 
     @property
     def toc_enabled(self) -> bool:
-        """Sumário automático (TOC) desta página. Ativo por padrão;
-        `toc: false` no front matter desativa. Não confundir com o campo
-        `toc` (a árvore de títulos já construída) desta mesma classe."""
+        """Automatic table of contents (TOC) for this page. Do not confuse it with the `toc` 
+        field (the already constructed tree of headings) of this same class."""
         return self.frontmatter.toc
 
     @property
     def navigation_enabled(self) -> bool:
-        """Sidebar de navegação (`nav:` do site.yaml) nesta página.
-        Desativada por padrão; `navigation: true` no front matter ativa."""
+        """Navigation sidebar (`nav:` from site.yaml) on this page."""
         return self.frontmatter.navigation
 
     @property
@@ -98,14 +101,20 @@ class Document:
 
     @property
     def excerpt(self) -> str:
-        if self.frontmatter.description:
-            return self.frontmatter.description
-        # fallback simples: primeiras palavras do texto sem HTML.
-        import re
+        if not self.excerpt_enabled:
+            # Desligado: description se houver, senão apenas o título.
+            return self.frontmatter.description or self.title
 
+        # Ligado: se houver marcação [[more]] explícita, respeita o autor.
+        if self.manual_excerpt is not None:
+            return self.manual_excerpt
+
+        # Sem marcação: sempre gera o excerpt padrão, mesmo que haja description.
+        import re
         text = re.sub(r"<[^>]+>", " ", self.content_html)
         text = re.sub(r"\s+", " ", text).strip()
-        return (text[:280] + "…") if len(text) > 280 else text
+        length = self.excerpt_length
+        return (text[:length] + "…") if len(text) > length else text
 
     def sort_key(self):
         return self.frontmatter.date or ""

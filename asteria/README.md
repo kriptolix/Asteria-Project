@@ -1,4 +1,4 @@
-Asteria
+# Asteria
 
 Asteria is a Python Static Site Generator (SSG) whose only content source is ODT. ODT-to-HTML conversion is handled by odt2web.
 
@@ -13,8 +13,8 @@ asteria serve
 
 asteria serve builds the site, starts a local HTTP server, watches for changes, and automatically rebuilds and reloads the browser.
 
-Commands
-Command	Description
+## Commands
+### Command	Description
 asteria new <path> [--title]	Creates a new project with configuration, content directories, static assets, a customizable theme, and a welcome page.
 asteria build [--converter]	Builds the site into build/.
 asteria serve [--host] [--port] [--no-watch]	Builds and serves the site locally with automatic rebuild and live reload.
@@ -38,7 +38,7 @@ theme.* — theme-defined configuration.
 
 Theme variables use Jinja2's StrictUndefined, so missing theme configuration causes a clear build error instead of silently rendering an empty value.
 
-Themes
+## Themes
 
 A project can provide its own theme/<name>/ directory. Otherwise, Asteria uses the bundled minimal theme.
 

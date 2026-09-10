@@ -59,11 +59,8 @@ a:hover {
   text-decoration-color: var(--color-accent-hover);
 }
 
-/* Links de navegação (menu, sidebar, breadcrumbs) não são sublinhados —
-   só o texto de conteúdo é (mesma distinção do extra.css original,
-   toclink/md-tabs__link vs. links de corpo de texto). */
 .site-menu a, .sidebar-toc a, .sidebar-nav a, .breadcrumbs a,
-.post-list a, .term-list a, .post-nav a, .social-link {
+.post-list a, .term-list a, .post-nav a, .social-link, .tag, .category {
   text-decoration: none;
 }
 
@@ -71,7 +68,6 @@ a:hover {
   text-decoration: none;
 }
 
-/* -- cabeçalho: capa escura, título em duas linhas ---------------------- */
 .site-header {
   background: var(--color-heading);
   color: var(--color-bg-raised);
@@ -119,6 +115,8 @@ a:hover {
   padding: 0;
 }
 
+.site-menu li + li { margin-left: 1.1rem; }
+
 .site-menu a {
   color: var(--color-bg-dim);
   font-size: 0.9rem;
@@ -128,7 +126,6 @@ a:hover {
 
 .site-menu a:hover { color: var(--color-accent-light); }
 
-/* -- layout ---------------------------------------------------------------- */
 .site-layout {
   max-width: var(--max-width);
   margin: 0 auto;
@@ -160,7 +157,6 @@ a:hover {
   font-size: 0.85rem;
 }
 
-/* -- tags/categorias, rótulo retangular (não pílula) ------------------------ */
 .tag, .category {
   display: inline-block;
   background: var(--color-bg-dim);
@@ -176,7 +172,6 @@ a:hover {
 
 .tag:hover, .category:hover { border-color: var(--color-accent); color: var(--color-accent); }
 
-/* -- selo/carimbo -------------------------------------------------------------- */
 .seal-badge {
   width: 4.75rem;
   height: 4.75rem;
@@ -197,7 +192,6 @@ a:hover {
   padding: 0.4rem;
 }
 
-/* -- rodapé ------------------------------------------------------------------- */
 .site-footer {
   text-align: center;
   color: var(--color-muted);
@@ -223,7 +217,6 @@ a:hover {
 
 .social-link:hover img { opacity: 1; }
 
-/* -- sidebar: TOC e índice de navegação -------------------------------------- */
 .sidebar-toc, .sidebar-nav {
   width: 230px;
   flex-shrink: 0;
@@ -297,7 +290,6 @@ a:hover {
   font-size: 0.75rem;
 }
 
-/* -- breadcrumbs -------------------------------------------------------------- */
 .breadcrumbs {
   font-size: 0.8rem;
   color: var(--color-muted);
@@ -308,7 +300,6 @@ a:hover {
 .breadcrumbs__sep { margin: 0 0.4rem; }
 .breadcrumbs__current { color: var(--color-text); font-weight: 600; }
 
-/* -- listagens ------------------------------------------------------------------ */
 .post-list { list-style: none; padding: 0; }
 .post-list li {
   margin-bottom: 1.25rem;
@@ -347,7 +338,6 @@ a:hover {
   border: 1px solid var(--color-border);
 }
 
-/* -- tabelas e listas de definição: núcleo de um SRD --------------------------- */
 table {
   border-collapse: collapse;
   width: 100%;
@@ -390,7 +380,6 @@ code { padding: 0.1rem 0.35rem; font-size: 0.85em; }
 pre { padding: 1rem; overflow-x: auto; }
 pre code { border: none; padding: 0; background: none; }
 
-/* -- impressão: útil pra tirar um SRD em PDF direto do navegador -------------- */
 @media print {
   .site-header, .sidebar-column, .site-footer, .breadcrumbs, .post-nav { display: none; }
   .site-layout { display: block; max-width: 100%; padding: 0; }
