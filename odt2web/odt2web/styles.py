@@ -1,8 +1,8 @@
-"""Sistema de estilos (secoes 6, 7 e 8 da especificacao).
+"""Style system (spec sections 6, 7 and 8).
 
-Interpreta styles.xml e os estilos automaticos de content.xml, resolvendo
-cada style-name ODT para uma representacao semantica que o renderer usa
-para decidir qual tag/classe HTML gerar.
+Interprets styles.xml and the automatic styles in content.xml, resolving
+each ODT style-name to a semantic representation that the renderer uses
+to decide which HTML tag/class to generate.
 """
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from xml.etree import ElementTree as ET
 
 from .ns import NS, q
 
-# Mapeamento padrao (secao 6) - o usuario pode sobrescrever/estender.
+# Default mapping (section 6) - the user may override/extend it.
 DEFAULT_STYLE_MAP: dict[str, str | dict] = {
     "Title": "h1",
     "Subtitle": "h2",
@@ -34,7 +34,7 @@ DEFAULT_STYLE_MAP: dict[str, str | dict] = {
 @dataclass
 class ColumnInfo:
     count: int = 1
-    gap: str | None = None  # unidade CSS
+    gap: str | None = None  # CSS unit
     rule: str | None = None  # "1px solid #rrggbb"
 
 
@@ -60,8 +60,8 @@ CM_PER_UNIT = {"cm": 1.0, "mm": 0.1, "in": 2.54, "pt": 2.54 / 72, "px": 2.54 / 9
 
 
 def _to_css_length(value: str | None) -> str | None:
-    """ODF ja usa unidades CSS-compativeis (cm, mm, in, pt, px) na maioria
-    dos casos; apenas repassamos o valor, validando o formato."""
+    """ODF already uses CSS-compatible units (cm, mm, in, pt, px) in
+    most cases; we just pass the value through, validating the format."""
     if not value:
         return None
     return value
@@ -71,20 +71,20 @@ _ODF_ESCAPE_RE = re.compile(r"_([0-9A-Fa-f]{2})_")
 
 
 def decode_odf_style_name(name: str) -> str:
-    """Decodifica o escaping de caracteres reservados usado pelo
-    LibreOffice/OpenOffice em style:name (ex: 'Heading_20_1' -> 'Heading 1',
-    'Normal_20__28_Web_29_' -> 'Normal (Web)'). O style:name e' um NCName
-    XML e nao pode conter certos caracteres (espaco, parenteses, etc.);
-    esses caracteres sao codificados como '_XX_' (hex de 2 digitos).
-    Quando style:display-name esta ausente, este e' o unico jeito de obter
-    o nome "humano" do estilo (usado para casar contra style_map/
+    """Decodes the reserved-character escaping used by
+    LibreOffice/OpenOffice in style:name (e.g. 'Heading_20_1' -> 'Heading 1',
+    'Normal_20__28_Web_29_' -> 'Normal (Web)'). style:name is an XML
+    NCName and cannot contain certain characters (space, parentheses,
+    etc.); those characters are encoded as '_XX_' (2-digit hex). When
+    style:display-name is absent, this is the only way to get the
+    "human" name of the style (used to match against style_map/
     DEFAULT_STYLE_MAP)."""
     return _ODF_ESCAPE_RE.sub(lambda m: chr(int(m.group(1), 16)), name)
 
 
 class StyleRegistry:
-    """Registro consolidado de todos os estilos nomeados e automaticos
-    encontrados em styles.xml e content.xml."""
+    """Consolidated registry of every named and automatic style found in
+    styles.xml and content.xml."""
 
     def __init__(self) -> None:
         self._styles: dict[str, StyleInfo] = {}
@@ -98,7 +98,7 @@ class StyleRegistry:
         return self._styles.get(name)
 
     def resolve_columns(self, name: str | None) -> ColumnInfo | None:
-        """Segue a cadeia parent-style-name ate achar informacao de colunas."""
+        """Follows the parent-style-name chain until it finds column info."""
         seen = set()
         current = name
         while current and current not in seen:
@@ -112,9 +112,10 @@ class StyleRegistry:
         return None
 
     def resolve_break_before(self, name: str | None) -> bool:
-        """Segue a cadeia parent-style-name ate achar 'quebrar antes' (a
-        propriedade e' herdada quando o estilo automatico do paragrafo nao
-        a redefine, o que e' o caso mais comum)."""
+        """Follows the parent-style-name chain until it finds "break
+        before" (the property is inherited when the paragraph's
+        automatic style does not redefine it, which is the most common
+        case)."""
         seen = set()
         current = name
         while current and current not in seen:
@@ -138,16 +139,16 @@ class StyleRegistry:
         return decode_odf_style_name(info.name)
 
     def resolve_style_candidates(self, name: str | None) -> list[str]:
-        """Retorna a lista ordenada de identificadores a tentar para
-        resolver um style_name contra style_map/DEFAULT_STYLE_MAP: o nome
-        bruto e o nome "humano" (decodificado/display-name) de cada nivel
-        da cadeia parent-style-name, do mais especifico ao mais geral.
+        """Returns the ordered list of identifiers to try when resolving
+        a style_name against style_map/DEFAULT_STYLE_MAP: the raw name
+        and the "human" (decoded/display-name) name of every level in the
+        parent-style-name chain, from most specific to most general.
 
-        Isso e' necessario porque documentos reais quase sempre aplicam
-        estilos automaticos gerados pelo editor (ex: 'P1', 'P2') cujo
-        style:parent-style-name aponta para o estilo nomeado de verdade
-        (ex: 'Heading_20_1' -> 'Heading 1') - o style_name do proprio
-        paragrafo quase nunca e' literalmente 'Heading 1'."""
+        This is necessary because real-world documents almost always
+        apply automatic styles generated by the editor (e.g. 'P1', 'P2')
+        whose style:parent-style-name points to the actual named style
+        (e.g. 'Heading_20_1' -> 'Heading 1') - the paragraph's own
+        style_name is almost never literally 'Heading 1'."""
         candidates: list[str] = []
         seen_names = set()
         current = name
@@ -159,7 +160,7 @@ class StyleRegistry:
                 candidates.append(display)
             info = self.get(current)
             current = info.parent if info else None
-        # remove duplicatas preservando a ordem
+        # remove duplicates while preserving order
         return list(dict.fromkeys(candidates))
 
 
@@ -228,8 +229,8 @@ def _parse_style_element(style_el: ET.Element, family_override: str | None = Non
             elif first == "sub":
                 info.subscript = True
 
-    # section-properties (usado por style:style family="section" e por
-    # page-layout-properties para colunas no nivel de pagina)
+    # section-properties (used by style:style family="section" and by
+    # page-layout-properties for page-level columns)
     section_props = style_el.find(q("style:section-properties"))
     if section_props is not None:
         columns = _parse_column_props(section_props)
@@ -245,7 +246,7 @@ def build_style_registry(styles_root: ET.Element | None, content_root: ET.Elemen
     def scan(root: ET.Element | None):
         if root is None:
             return
-        # office:styles (estilos nomeados), office:automatic-styles
+        # office:styles (named styles), office:automatic-styles
         for container_tag in ("office:styles", "office:automatic-styles", "office:master-styles"):
             container = root.find(q(container_tag))
             if container is None:
@@ -254,8 +255,8 @@ def build_style_registry(styles_root: ET.Element | None, content_root: ET.Elemen
                 info = _parse_style_element(style_el)
                 if info:
                     registry.add(info)
-            # page-layout tambem pode carregar colunas (raras vezes usado
-            # como fallback quando a secao nao define as suas)
+            # page-layout can also carry columns (rarely used as a
+            # fallback when the section does not define its own)
             for layout_el in container.findall(q("style:page-layout")):
                 info = _parse_style_element(layout_el, family_override="page-layout")
                 if info:
@@ -268,8 +269,8 @@ def build_style_registry(styles_root: ET.Element | None, content_root: ET.Elemen
 
 
 def build_list_style_registry(styles_root: ET.Element | None, content_root: ET.Element | None) -> dict[str, bool]:
-    """Mapeia nome de list-style -> True (ordenada) / False (nao ordenada),
-    olhando o primeiro nivel definido (secao 5 'listas')."""
+    """Maps list-style name -> True (ordered) / False (unordered),
+    looking at the first defined level (spec section 5 'lists')."""
     result: dict[str, bool] = {}
 
     def scan(root: ET.Element | None):
@@ -302,18 +303,18 @@ def _mapping_to_tag_attrs(mapping) -> tuple[str, dict]:
 
 
 def resolve_style_mapping(candidates: list[str], style_map: dict) -> tuple[str, dict] | None:
-    """Resolve a lista de identificadores candidatos (ver
-    StyleRegistry.resolve_style_candidates) contra o style_map do usuario
-    (secao 7) e, na sequencia, contra o padrao (secao 6).
+    """Resolves the list of candidate identifiers (see
+    StyleRegistry.resolve_style_candidates) against the user's style_map
+    (section 7) and then against the default (section 6).
 
-    Retorna None se nenhum candidato casar com nada (o chamador decide o
-    fallback - paragrafos comuns caem em <p>, headings caem em h(N) pelo
-    outline-level).
+    Returns None if no candidate matches anything (the caller decides
+    the fallback - regular paragraphs fall back to <p>, headings fall
+    back to h(N) based on outline-level).
 
-    O style_map do usuario tem prioridade total sobre o padrao, mas
-    ambos sao tentados em toda a cadeia de heranca antes de desistir.
-    Uma segunda passada case-insensitive cobre variacoes de capitalizacao
-    entre versoes/idiomas do LibreOffice (ex: 'Text Body' vs 'Text body').
+    The user's style_map has full priority over the default, but both
+    are tried against the whole inheritance chain before giving up. A
+    second, case-insensitive pass covers capitalization variations
+    between LibreOffice versions/locales (e.g. 'Text Body' vs 'Text body').
     """
     if not candidates:
         return None

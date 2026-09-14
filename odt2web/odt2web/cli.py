@@ -1,4 +1,4 @@
-"""Interface de linha de comando (secao 15 da especificacao).
+"""Command-line interface (spec section 15).
 
     odt2web artigo.odt
     odt2web artigo.odt -o dist/
@@ -109,8 +109,8 @@ def main(argv: list[str] | None = None) -> int:
             kwargs["assets_dir"] = args.assets_dir
         if args.allow_raw_html is not None:
             kwargs["allow_raw_html"] = args.allow_raw_html
-        # o CLI, ao contrario da API, gera documento completo por padrao
-        # (mais util para uso standalone); --fragment/--document sobrescrevem.
+        # unlike the API, the CLI generates a full document by default
+        # (more useful for standalone use); --fragment/--document override this.
         kwargs["document"] = args.document if args.document is not None else True
 
         result = convert(args.input, **kwargs)

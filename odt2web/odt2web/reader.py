@@ -1,14 +1,14 @@
-"""Package Reader (secao 3.1 da especificacao).
+"""Package Reader (spec section 3.1).
 
-Le o .odt como um pacote ZIP (formato ODF) e da acesso a:
+Reads the .odt as a ZIP package (ODF format) and gives access to:
 - content.xml
 - styles.xml
 - meta.xml
 - settings.xml
 - manifest.xml
-- recursos binarios em Pictures/ e outros
+- binary resources under Pictures/ and others
 
-Nao depende do LibreOffice.
+Does not depend on LibreOffice.
 """
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ from xml.etree import ElementTree as ET
 
 
 class InvalidOdtError(Exception):
-    """Levantado quando o arquivo nao e' um pacote ODT valido."""
+    """Raised when the file is not a valid ODT package."""
 
 
 @dataclass
@@ -29,23 +29,23 @@ class OdtPackage:
     meta_xml: ET.Element | None
     settings_xml: ET.Element | None
     manifest_entries: dict[str, str]  # full-path -> media-type
-    resources: dict[str, bytes]  # caminho dentro do zip -> bytes (Pictures/, etc.)
+    resources: dict[str, bytes]  # path inside the zip -> bytes (Pictures/, etc.)
     mimetype: str | None
 
 
 def _parse_xml(data: bytes) -> ET.Element:
-    # xml.etree nao expande entidades externas nem processa DTDs por
-    # padrao, o que mitiga ataques XXE/bilhao-de-risadas comuns; ainda
-    # assim tratamos o conteudo como nao confiavel (secao 13).
+    # xml.etree does not expand external entities nor process DTDs by
+    # default, which mitigates common XXE/billion-laughs attacks; we
+    # still treat the content as untrusted (section 13).
     return ET.fromstring(data)
 
 
 def read_odt_bytes(data: bytes) -> OdtPackage:
-    """Le um pacote .odt a partir de bytes em memoria."""
+    """Reads an .odt package from in-memory bytes."""
     try:
         zf = zipfile.ZipFile(io.BytesIO(data))
     except zipfile.BadZipFile as exc:
-        raise InvalidOdtError("Arquivo nao e' um ZIP/ODT valido") from exc
+        raise InvalidOdtError("File is not a valid ZIP/ODT") from exc
 
     names = set(zf.namelist())
 
@@ -59,11 +59,11 @@ def read_odt_bytes(data: bytes) -> OdtPackage:
         try:
             return _parse_xml(zf.read(name))
         except ET.ParseError as exc:
-            raise InvalidOdtError(f"XML invalido em {name}: {exc}") from exc
+            raise InvalidOdtError(f"Invalid XML in {name}: {exc}") from exc
 
     content_xml = read_optional_xml("content.xml")
     if content_xml is None:
-        raise InvalidOdtError("content.xml ausente - nao parece ser um .odt valido")
+        raise InvalidOdtError("content.xml missing - does not look like a valid .odt")
 
     styles_xml = read_optional_xml("styles.xml")
     meta_xml = read_optional_xml("meta.xml")
@@ -97,7 +97,7 @@ def read_odt_bytes(data: bytes) -> OdtPackage:
 
 
 def read_odt_file(path: str) -> OdtPackage:
-    """Le um pacote .odt a partir de um caminho no sistema de arquivos."""
+    """Reads an .odt package from a path on the file system."""
     with open(path, "rb") as fh:
         data = fh.read()
     return read_odt_bytes(data)

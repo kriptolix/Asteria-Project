@@ -1,8 +1,8 @@
-"""Gerador de CSS (secao 9 da especificacao).
+"""CSS generator (spec section 9).
 
-Gera apenas as regras necessarias aos recursos efetivamente usados no
-documento (colunas, tabelas, notas, etc.), conforme detectado pelo
-RenderContext.features durante a renderizacao.
+Generates only the rules needed for the resources actually used in the
+document (columns, tables, notes, etc.), as detected by
+RenderContext.features during rendering.
 """
 from __future__ import annotations
 
@@ -126,7 +126,7 @@ _RULES: dict[str, str] = {
     ),
 }
 
-# ordem de emissao estavel, independente da ordem de insercao no set
+# stable emission order, independent of insertion order in the set
 _FEATURE_ORDER = [
     "image", "figure", "blockquote", "pre", "code-block", "inline-code",
     "list", "table", "notes", "page-break", "raw-html",

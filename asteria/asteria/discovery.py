@@ -81,14 +81,14 @@ def _walk_posts(
 
 
 def _detect_lang(stem: str, languages: list[str], default_language: str) -> tuple[str, str]:
-    """Detects an explicit language in the filename. 
+    """Detecta um idioma explícito no nome do arquivo.
 
-    Convention: "meu-post.pt.odt" -> language "pt" (provided "pt" is
-    among the languages ​​configured in `i18n.languages`/`site.language`); 
-    "meu-post.odt" -> site's default language. Returns
-    (translation_key, lang), where translation_key is the filename
-    without the language suffix—used to group translations of the
-    same post together.
+    Convenção: "meu-post.pt.odt" -> idioma "pt" (desde que "pt" esteja
+    entre os idiomas configurados em `i18n.languages`/`site.language`);
+    "meu-post.odt" -> idioma padrão do site. Retorna
+    (translation_key, lang), onde translation_key é o nome do arquivo
+    sem o sufixo de idioma — usado para agrupar as traduções de um
+    mesmo post entre si.
     """
     if "." in stem:
         base, _, suffix = stem.rpartition(".")
@@ -128,8 +128,8 @@ def _load_document(
                 source=str(path),
             )
 
-    # The `lang:` field in the front matter, when present, takes precedence
-    # over the language detected from the filename.
+    # O campo `lang:` do front matter, quando presente, tem prioridade
+    # sobre o idioma detectado a partir do nome do arquivo.
     final_lang = fm.lang or lang
 
     cls = Page if kind == "page" else Post
@@ -155,12 +155,16 @@ def discover_content(
 
     page_odts, page_raw_dirs = _walk_pages(config.pages_dir, diagnostics)
     for path in page_odts:
-        # Páginas não participam do suporte multi-idioma por enquanto:
-        # sempre usam o idioma padrão do site.
+        # Páginas seguem a mesma convenção dos posts: "sobre.odt" -> idioma
+        # padrão; "sobre.pt.odt" -> idioma "pt" (se configurado). O campo
+        # `lang:` no front matter tem prioridade sobre o nome do arquivo.
+        translation_key, detected_lang = _detect_lang(
+            path.stem, config.languages, config.default_language
+        )
         pages.append(
             _load_document(
                 path, "page", converter, diagnostics,
-                lang=config.default_language, translation_key=path.stem,
+                lang=detected_lang, translation_key=translation_key,
             )
         )  # type: ignore[arg-type]
     for raw_dir in page_raw_dirs:
@@ -185,22 +189,22 @@ def discover_content(
         )
 
     _validate_unique_ids(pages, posts, raw_pages, diagnostics)
-    _validate_languages(posts, config, diagnostics)
+    _validate_languages([*pages, *posts], config, diagnostics)
     return pages, posts, raw_pages
 
 
 def _validate_languages(
-    posts: list[Post], config: SiteConfig, diagnostics: Diagnostics
+    documents: list[Document], config: SiteConfig, diagnostics: Diagnostics
 ) -> None:
     known = set(config.languages)
-    for post in posts:
-        if post.lang not in known:
+    for doc in documents:
+        if doc.lang not in known:
             diagnostics.warning(
-                f"Post language '{post.lang}' is not listed in "
+                f"{doc.kind.capitalize()} language '{doc.lang}' is not listed in "
                 "i18n.languages (or site.language); it will still be "
                 "built, but won't get a language prefix and won't be "
                 "grouped with the site's other languages.",
-                source=str(post.source_path),
+                source=str(doc.source_path),
             )
 
 

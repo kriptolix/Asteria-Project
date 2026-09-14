@@ -1,4 +1,4 @@
-"""Namespaces XML do OpenDocument Format usados pelo pacote."""
+"""OpenDocument Format XML namespaces used by the package reader."""
 
 NS = {
     "office": "urn:oasis:names:tc:opendocument:xmlns:office:1.0",
@@ -19,11 +19,11 @@ NS = {
 
 
 def tag(prefix: str, name: str) -> str:
-    """Retorna a tag qualificada '{uri}name' para uso com ElementTree."""
+    """Returns the qualified '{uri}name' tag for use with ElementTree."""
     return f"{{{NS[prefix]}}}{name}"
 
 
 def q(qualified: str) -> str:
-    """Converte 'prefix:name' em '{uri}name'."""
+    """Converts 'prefix:name' into '{uri}name'."""
     prefix, name = qualified.split(":", 1)
     return tag(prefix, name)

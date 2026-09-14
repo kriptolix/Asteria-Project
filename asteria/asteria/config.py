@@ -4,6 +4,7 @@ Reads SSG configurations from `site.yaml` and merges them with the defaults.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -36,15 +37,14 @@ DEFAULTS: dict[str, Any] = {
     },
     "blog": {
         "posts_per_page": 10,
-        "url_prefix": "blog",
         "excerpt_enabled": True,
         "excerpt_length": 280,
     },
-    "i18n": {        
-        "languages": [],        
-        "default_language": "en",
+    "i18n": {       
+        "languages": [],       
+        "default_language": "",
     },
-    "assets": {        
+    "assets": {       
         "fingerprint": True,
     },
     "urls": {
@@ -161,13 +161,17 @@ class SiteConfig:
 
     @property
     def default_language(self) -> str:
-        
+        """Idioma padrão do site (sem prefixo de URL)."""
         return self.data["i18n"].get("default_language") or self.language
 
     @property
     def languages(self) -> list[str]:
-        """All languages ​​supported by the site, including the default."""
+        """Todos os idiomas suportados pelo site, incluindo o padrão.
 
+        O idioma padrão vem sempre primeiro. Se `i18n.languages` não for
+        configurado, o site continua se comportando como monolíngue
+        (apenas `default_language`).
+        """
         default = self.default_language
         extra = [lang for lang in (self.data["i18n"].get("languages") or []) if lang != default]
         return [default, *extra]
@@ -177,12 +181,17 @@ class SiteConfig:
         return bool(self.data.get("assets", {}).get("fingerprint", True))
 
     @property
-    def blog_prefix(self) -> str:
-        return self.data["blog"].get("url_prefix", "blog")
-
-    @property
     def blog_index_url(self) -> str:
-        return f"/{self.blog_prefix.strip('/')}/"
+        """URL of the paginated blog listing ("/blog/", "/blog/page/2/",
+        ...), derived from `urls.posts` (e.g. "/blog/{slug}/" -> "/blog/"),
+        so it can never drift out of sync with individual post URLs — there
+        is only one setting (`urls.posts`) to edit for the blog's URL
+        structure. "/{slug}/" (posts at the site root) -> "/" (listing at
+        the site root too). The slash collapse guards against unusual
+        patterns where "{slug}" isn't the last path segment."""
+        posts_pattern = self.data["urls"]["posts"]
+        prefix = re.sub(r"/+", "/", posts_pattern.replace("{slug}", "")).strip("/")
+        return f"/{prefix}/" if prefix else "/"
 
     @property
     def url_patterns(self) -> dict[str, str]:

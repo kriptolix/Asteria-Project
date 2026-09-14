@@ -17,9 +17,14 @@ from .discovery import discover_content
 from .document import Document, Page, Post
 from .errors import AsteriaError, Diagnostics
 from .feed import render_atom, render_rss
-from .nav import build_nav
+from .nav import NavEntry, build_nav
 from .pagination import paginate
-from .references import build_registry, resolve_references_for_all, split_at_more_marker
+from .references import (
+    build_registry,
+    build_translation_registry,
+    resolve_references_for_all,
+    split_at_more_marker,
+)
 from .sitemap import SitemapEntry, render_sitemap
 from .social import build_social_links
 from .taxonomy import Term, collect_categories, collect_tags
@@ -57,22 +62,26 @@ class BuildResult:
 def _assign_urls(config: SiteConfig, pages: list[Page], posts: list[Post]) -> None:
     patterns = config.url_patterns
     for page in pages:
-        page.url = build_url(patterns["pages"], slug=page.slug)
+        base_url = build_url(patterns["pages"], slug=page.slug)
+        page.url = prefix_lang(base_url, page.lang, config.default_language)
     for post in posts:
         base_url = build_url(patterns["posts"], slug=post.slug)
         post.url = prefix_lang(base_url, post.lang, config.default_language)
 
 
-def _link_translations(posts: list[Post]) -> None:
-    """Populates `post.translations` with the other versions (in other languages) 
-    of each post, grouped by `translation_key`."""
-    groups: dict[str, list[Post]] = {}
-    for post in posts:
-        groups.setdefault(post.translation_key, []).append(post)
+def _link_translations(documents: list[Document]) -> None:
+    """Preenche `doc.translations` com as demais versões (em outros
+    idiomas) de cada documento, agrupadas por `translation_key`. Chame
+    separadamente para `pages` e `posts` — uma página e um post nunca
+    devem ser considerados tradução um do outro, mesmo que, por
+    coincidência, compartilhem a mesma translation_key."""
+    groups: dict[str, list[Document]] = {}
+    for doc in documents:
+        groups.setdefault(doc.translation_key, []).append(doc)
 
     for group in groups.values():
-        for post in group:
-            post.translations = {p.lang: p for p in group if p is not post}
+        for doc in group:
+            doc.translations = {d.lang: d for d in group if d is not doc}
 
 
 def _build_toc_for_all(documents: list[Document]) -> None:
@@ -101,9 +110,27 @@ def _build_menu(
     menu_config: list[dict],
     config: SiteConfig,
     pages_by_id: dict[str, Page],
+    pages_by_translation_key: dict[str, dict[str, Page]],
     posts: list[Post],
+    lang: str,
+    diagnostics: Diagnostics,
 ) -> list[dict[str, str]]:
-    blog_keys = {"blog", config.blog_prefix.strip("/")}
+    """Builds the menu for a single language.
+
+    `page:` in a menu entry is resolved as a translation_key first (e.g.
+    "about" — the common case, matches any translated page sharing that
+    translation_key, picking the version in `lang`, falling back to the
+    site's default language, and finally to whatever translation happens
+    to exist). If no translation_key matches, it's tried as an exact
+    document id instead (e.g. "about.pt") — an escape hatch to pin one
+    specific translation regardless of the current language, or to
+    reference a document that has no translations at all.
+    """
+    # "blog" is the one reserved keyword that means "the blog index" in
+    # `page:` (here) and `home_page:` (see run_build) — there's no
+    # separate url_prefix-based alias anymore, since the blog's URL is
+    # fully derived from `urls.posts` (see SiteConfig.blog_index_url).
+    blog_keys = {"blog"}
     menu_items = []
     referenced_ids: set[str] = set()
 
@@ -111,11 +138,37 @@ def _build_menu(
         page_id = entry.get("page")
         referenced_ids.add(page_id)
         title = entry.get("title", page_id)
+
         if page_id in blog_keys:
-            url = config.blog_index_url
+            url = prefix_lang(config.blog_index_url, lang, config.default_language)
         else:
-            page = pages_by_id.get(page_id)
-            url = "#" if page is None else page.url
+            # translation_key is checked FIRST, exact id second — not the
+            # other way around. A translated page's translation_key (e.g.
+            # "sobre") is usually identical to the untranslated/default
+            # document's own id, so checking id first would always match
+            # the default-language page and never reach the translation
+            # group. A dotted id used to pin one specific translation
+            # (e.g. "sobre.pt") is never itself a valid translation_key,
+            # so this order never breaks that escape hatch.
+            page = None
+            translations = pages_by_translation_key.get(page_id)
+            if translations:
+                page = (
+                    translations.get(lang)
+                    or translations.get(config.default_language)
+                    or next(iter(translations.values()))
+                )
+            if page is None:
+                page = pages_by_id.get(page_id)
+            if page is None:
+                diagnostics.warning(
+                    f"menu: page '{page_id}' not found (checked both as an "
+                    "exact page id and as a translation_key).",
+                    source="theme.yaml",
+                )
+                url = "#"
+            else:
+                url = page.url
         menu_items.append({"title": title, "url": url, "page_id": page_id})
 
     # If there are posts, the blog is not the home page, and the user has not
@@ -127,23 +180,58 @@ def _build_menu(
         and not (referenced_ids & blog_keys)
     ):
         menu_items.append(
-            {"title": "Blog", "url": config.blog_index_url, "page_id": "blog"}
+            {
+                "title": "Blog",
+                "url": prefix_lang(config.blog_index_url, lang, config.default_language),
+                "page_id": "blog",
+            }
         )
 
     return menu_items
 
 
+def _theme_ns_for_lang(
+    theme_ns: dict,
+    menus_by_lang: dict[str, list[dict[str, str]]],
+    navs_by_lang: dict[str, list[NavEntry]],
+    lang: str,
+    default_language: str,
+) -> dict:
+    """Returns the theme namespace to use for content in `lang`: a shallow
+    copy of `theme_ns` with 'menu' and 'nav' swapped for the versions
+    built for that language (falling back to the default language's
+    version if `lang` has none of its own — e.g. a document whose
+    language isn't listed in i18n.languages). Everything else (social,
+    sidebar_toc, ...) stays shared, since only menu/nav are currently
+    built per language.
+
+    Returns `theme_ns` itself, unmodified, when both already match the
+    target — avoids a pointless copy for the common case (most documents
+    are in the default language, which is what `theme_ns` is
+    pre-populated with)."""
+    menu = menus_by_lang.get(lang) or menus_by_lang.get(default_language, [])
+    nav = navs_by_lang.get(lang) or navs_by_lang.get(default_language, [])
+    if menu is theme_ns.get("menu") and nav is theme_ns.get("nav"):
+        return theme_ns
+    return {**theme_ns, "menu": menu, "nav": nav}
+
+
 def _breadcrumbs_for_page(config: SiteConfig, page: Page) -> list[dict[str, str]]:
     crumbs = [{"title": config.title, "url": "/"}]
-    if page.id != config.home_page:
+    # Compara por translation_key (não por id): a versão traduzida da home
+    # ("sobre.pt") tem um id diferente da página padrão ("sobre"), mas
+    # ambas compartilham a mesma translation_key e são igualmente "a home"
+    # em seu idioma.
+    if page.translation_key != config.home_page:
         crumbs.append({"title": page.title, "url": page.url})
     return crumbs
 
 
 def _breadcrumbs_for_post(config: SiteConfig, post: Post) -> list[dict[str, str]]:
+    blog_url = prefix_lang(config.blog_index_url, post.lang, config.default_language)
     return [
         {"title": config.title, "url": "/"},
-        {"title": "Blog", "url": config.blog_index_url},
+        {"title": "Blog", "url": blog_url},
         {"title": post.title, "url": post.url},
     ]
 
@@ -219,9 +307,13 @@ def run_build(
     if diagnostics.has_errors:
         return BuildResult(diagnostics, pages, posts, config.output_dir)
 
+    _link_translations(pages)
     _link_translations(posts)
     _assign_urls(config, pages, posts)
-    resolve_references_for_all([*pages, *posts], diagnostics, extra_targets=raw_pages)
+    resolve_references_for_all(
+        [*pages, *posts], diagnostics, extra_targets=raw_pages,
+        default_language=config.default_language,
+    )
 
     if diagnostics.has_errors:
         return BuildResult(diagnostics, pages, posts, config.output_dir)
@@ -230,16 +322,38 @@ def run_build(
     _assign_prev_next(posts)
 
     pages_by_id = {p.id: p for p in pages}
+    pages_by_translation_key: dict[str, dict[str, Page]] = {}
+    for page in pages:
+        pages_by_translation_key.setdefault(page.translation_key, {})[page.lang] = page
+
     theme_config_raw = load_theme_config(config.theme_dir)
-    menu_items = _build_menu(theme_config_raw.get("menu", []), config, pages_by_id, posts)
+    menus_by_lang: dict[str, list[dict[str, str]]] = {
+        lang: _build_menu(
+            theme_config_raw.get("menu", []), config, pages_by_id,
+            pages_by_translation_key, posts, lang, diagnostics,
+        )
+        for lang in config.languages
+    }
     feed_url = f"/{_feed_filename(config)}" if config.feeds_enabled else None
     nav_registry = build_registry([*pages, *posts, *raw_pages])
-    nav_items = build_nav(theme_config_raw.get("nav", []), nav_registry, diagnostics)
+    # Raw pages are excluded here (same as menus/[[references]]): they have
+    # no lang/translation_key, so they're only reachable by their exact id.
+    nav_translation_registry = build_translation_registry([*pages, *posts])
+    navs_by_lang: dict[str, list[NavEntry]] = {
+        lang: build_nav(
+            theme_config_raw.get("nav", []), nav_registry, diagnostics,
+            translation_registry=nav_translation_registry,
+            lang=lang, default_language=config.default_language,
+        )
+        for lang in config.languages
+    }
     social_links = build_social_links(theme_config_raw.get("social", []))
     
     theme_ns: dict = dict(theme_config_raw)
-    theme_ns["menu"] = menu_items
-    theme_ns["nav"] = nav_items
+    # Default-language menu; per-document/per-page renders below swap this
+    # for the right language via `_theme_ns_for_lang`.
+    theme_ns["menu"] = menus_by_lang.get(config.default_language, [])
+    theme_ns["nav"] = navs_by_lang.get(config.default_language, [])
     theme_ns["social"] = social_links   
     theme_ns.setdefault("sidebar_toc", True)
     theme_ns.setdefault("default_variant", "light")
@@ -281,12 +395,16 @@ def run_build(
 
     home_candidates: dict[str, str] = {}
     home_candidate_images: dict[str, list] = {}
+    # Preenchido no laço por idioma abaixo, apenas quando `home_page:` no
+    # site.yaml é 'blog': página 1 do índice do blog de cada idioma.
+    blog_home_html: dict[str, str] = {}
     sitemap_entries: list[SitemapEntry] = []
 
     # -- pages --------------------------------------------------------------
     for page in pages:
+        page_theme_ns = _theme_ns_for_lang(theme_ns, menus_by_lang, navs_by_lang, page.lang, config.default_language)
         context = _document_context(
-            config, site_view, theme_ns, page, _breadcrumbs_for_page(config, page)
+            config, site_view, page_theme_ns, page, _breadcrumbs_for_page(config, page)
         )
         html = _finalize_html(render_template(env, "page.html", context), live_reload_script)
         if not dry_run:
@@ -300,8 +418,9 @@ def run_build(
 
     # -- posts ------------------------------------------------------------
     for post in posts:
+        post_theme_ns = _theme_ns_for_lang(theme_ns, menus_by_lang, navs_by_lang, post.lang, config.default_language)
         context = _document_context(
-            config, site_view, theme_ns, post, _breadcrumbs_for_post(config, post)
+            config, site_view, post_theme_ns, post, _breadcrumbs_for_post(config, post)
         )
         html = _finalize_html(render_template(env, "post.html", context), live_reload_script)
         if not dry_run:
@@ -318,6 +437,7 @@ def run_build(
     # idiomas diferentes num mesmo índice/feed/nuvem de tags.
     for lang in config.languages:
         is_default_lang = lang == config.default_language
+        lang_theme_ns = _theme_ns_for_lang(theme_ns, menus_by_lang, navs_by_lang, lang, config.default_language)
         lang_posts = [p for p in posts if p.lang == lang]
         lang_posts_desc = sorted(lang_posts, key=lambda p: p.sort_key(), reverse=True)
 
@@ -330,10 +450,10 @@ def run_build(
                     "blog.html",
                     {
                         "site": site_view,
-                        "theme": theme_ns,
+                        "theme": lang_theme_ns,
                         "posts": blog_page.items,
                         "pagination": blog_page,
-                        "theme_css": theme_ns["default_variant"],
+                        "theme_css": lang_theme_ns["default_variant"],
                         "canonical_path": blog_page.url,
                         "og_type": "website",
                         "show_navigation": False,
@@ -349,12 +469,8 @@ def run_build(
             if not dry_run:
                 write_page(config.output_dir, url_to_output_path(blog_page.url), html)
             sitemap_entries.append(SitemapEntry(path=blog_page.url))
-            # A home page ('blog' no site.yaml) só pode apontar para o
-            # índice do idioma padrão — os demais idiomas não disputam a
-            # raiz do site.
-            if blog_page.number == 1 and is_default_lang:
-                home_candidates["blog"] = html
-                home_candidates[config.blog_prefix.strip("/")] = html
+            if blog_page.number == 1:
+                blog_home_html[lang] = html
 
         tags_index_url = prefix_lang(
             config.data["urls"]["tags_index"], lang, config.default_language
@@ -369,12 +485,12 @@ def run_build(
                 term.url = prefix_lang(term.url, lang, config.default_language)
 
         sitemap_entries += _write_taxonomy(
-            config, env, site_view, theme_ns, lang_tags,
+            config, env, site_view, lang_theme_ns, lang_tags,
             kind_label="Tags", index_url=tags_index_url,
             dry_run=dry_run, live_reload_script=live_reload_script,
         )
         sitemap_entries += _write_taxonomy(
-            config, env, site_view, theme_ns, lang_categories,
+            config, env, site_view, lang_theme_ns, lang_categories,
             kind_label="Categorias", index_url=categories_index_url,
             dry_run=dry_run, live_reload_script=live_reload_script,
         )
@@ -393,26 +509,60 @@ def run_build(
             )
             write_text_file(config.output_dir, feed_filename, feed_xml)
 
-    # --home page: can point to a page, to the
-    # blog index ('blog'), or to another generated index that has been
-    # registered in home_candidates. -------------------------------------------
-    home_html = home_candidates.get(config.home_page)
-    if home_html is not None:
+    # -- home page, por idioma: a home pode ser uma página (identificada
+    # por config.home_page) ou o índice do blog ('blog'). Para o idioma
+    # padrão a URL fica em "/", exatamente como antes; para os demais
+    # idiomas (i18n.languages), em "/{lang}/", usando a home traduzida
+    # correspondente — se ela existir. ---------------------------------
+    is_blog_home = config.home_page == "blog"
+
+    # Todas as versões (por idioma) da página escolhida como home,
+    # indexadas pelo próprio idioma — vazio se a home for o blog, ou se
+    # a página referenciada em `home_page:` não existir.
+    home_pages_by_lang: dict[str, Page] = {}
+    if not is_blog_home:
+        home_page_default = pages_by_id.get(config.home_page)
+        if home_page_default is not None:
+            home_pages_by_lang[home_page_default.lang] = home_page_default
+            home_pages_by_lang.update(home_page_default.translations)
+
+    for lang in config.languages:
+        is_default_lang = lang == config.default_language
+        root_path = "/" if is_default_lang else f"/{lang}/"
+
+        if is_blog_home:
+            home_html = blog_home_html.get(lang)
+            extra_images: list = []
+        else:
+            home_page_for_lang = home_pages_by_lang.get(lang)
+            home_html = home_candidates.get(home_page_for_lang.id) if home_page_for_lang else None
+            extra_images = (
+                home_candidate_images.get(home_page_for_lang.id, []) if home_page_for_lang else []
+            )
+
+        if home_html is None:
+            # Só avisamos para o idioma padrão: para os demais, a
+            # ausência de uma home traduzida é esperada (nem toda página
+            # precisa ter versão em todos os idiomas) e não é um erro.
+            if is_default_lang and (pages or posts):
+                diagnostics.warning(
+                    f"Home page '{config.home_page}' not found among the "
+                    "generated pages or indexes (use a page ID, or 'blog' "
+                    "to use the blog index); no root index.html was generated.",
+                )
+            continue
+
         if not dry_run:
-            write_page(config.output_dir, "index.html", home_html)
-            # The duplicated page at / needs its images at the root as well,
-            # since the HTML uses relative paths (the image is located next to
-            # the index.html in its own folder, e.g., /pages/inicio/foo.png).
-            extra_images = home_candidate_images.get(config.home_page, [])
+            write_page(config.output_dir, url_to_output_path(root_path), home_html)
+            # A home duplicada precisa das suas imagens também na raiz (ou
+            # em '/{lang}/'), já que o HTML usa caminhos relativos (a
+            # imagem fica ao lado do index.html original, em sua própria
+            # pasta, ex: /pages/sobre/foo.png).
             if extra_images:
-                write_document_images(config.output_dir, extra_images, subdir="")
-        sitemap_entries.append(SitemapEntry(path="/"))
-    elif pages or posts:
-        diagnostics.warning(
-            f"Home page '{config.home_page}' not found among the "
-            "generated pages or indexes (use a page ID, or 'blog' "
-            "to use the blog index); no root index.html was generated.",
-        )
+                write_document_images(
+                    config.output_dir, extra_images, subdir=url_to_output_dir(root_path)
+                )
+        sitemap_entries.append(SitemapEntry(path=root_path))
 
     # -- page 404 --------------------------------------------------------------
     not_found_html = _finalize_html(

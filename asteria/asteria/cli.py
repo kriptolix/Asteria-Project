@@ -156,7 +156,13 @@ def build_parser() -> argparse.ArgumentParser:
     check_p.set_defaults(func=_cmd_check)
 
     new_p = subparsers.add_parser("new", help="Create a new Asteria project")
-    new_p.add_argument("path", help="Directory where the project will be created (created if it does not exist).")    
+    new_p.add_argument(
+        "path",
+        nargs="?",
+        default="my_site",
+        help="Directory where the project will be created (created if it does not exist). "
+        "Default: 'my_site' in the current directory.",
+    )
     new_p.set_defaults(func=_cmd_new)
 
     return parser

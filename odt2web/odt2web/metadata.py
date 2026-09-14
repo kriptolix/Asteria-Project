@@ -1,4 +1,4 @@
-"""Extracao de metadados de meta.xml (secao 11 da especificacao)."""
+"""Metadata extraction from meta.xml (spec section 11)."""
 from __future__ import annotations
 
 from xml.etree import ElementTree as ET

@@ -1,5 +1,10 @@
 """
 Semantic reference resolution.
+
+Handles [[id]] / [[id|Custom label]] cross-references between pages/posts.
+Raw HTML embedding is NOT handled here — that's a `:::html ... :::` fenced
+block recognized directly by the odt2web converter, before this module
+ever sees the HTML.
 """
 
 from __future__ import annotations
@@ -10,9 +15,10 @@ from typing import Any
 
 from .errors import Diagnostics
 
-REFERENCE_RE = re.compile(r"(\\)?\[\[(embed:)?([A-Za-z0-9_\-]+)(?:\|([^\]]+))?\]\]")
-
-DEFAULT_EMBED_HEIGHT = 600
+# Allows a dot in the id (e.g. "hello-world.pt") so a specific translation
+# can be pinned by its exact document id — see _resolve_target below for
+# why that alone isn't the primary resolution path.
+REFERENCE_RE = re.compile(r"(\\)?\[\[([A-Za-z0-9_.\-]+)(?:\|([^\]]+))?\]\]")
 
 MORE_MARKER = "more" 
 
@@ -27,43 +33,73 @@ def build_registry(items: list[Any]) -> dict[str, Any]:
     return {item.id: item for item in items}
 
 
+def build_translation_registry(items: list[Any]) -> dict[str, dict[str, Any]]:
+    """Groups items by translation_key -> {lang: item}, so a plain
+    [[reference]] can be resolved to the version matching the *current*
+    document's language, instead of always landing on whichever
+    translation happens to own that exact id.
+
+    Items without a translation_key/lang (e.g. raw pages) are skipped —
+    they're still reachable by their exact id through the regular
+    registry built by `build_registry`."""
+    registry: dict[str, dict[str, Any]] = {}
+    for item in items:
+        translation_key = getattr(item, "translation_key", None)
+        lang = getattr(item, "lang", None)
+        if not translation_key or not lang:
+            continue
+        registry.setdefault(translation_key, {})[lang] = item
+    return registry
+
+
 def resolve_references(
-    html: str, registry: dict[str, Any], source: str, diagnostics: Diagnostics
+    html: str,
+    registry: dict[str, Any],
+    source: str,
+    diagnostics: Diagnostics,
+    translation_registry: dict[str, dict[str, Any]] | None = None,
+    lang: str = "",
+    default_language: str = "",
 ) -> str:
+    def _resolve_target(ref_id: str) -> Any | None:
+        # translation_key is checked FIRST, exact id second — mirrors
+        # build._build_menu's `page:` resolution, and for the same
+        # reason: a translated document's translation_key (e.g.
+        # "about") is usually identical to the untranslated/default
+        # document's own id, so checking id first would always match the
+        # default-language document and never reach the translation
+        # group. A dotted id used to pin one specific translation (e.g.
+        # "about.pt") is never itself a valid translation_key, so this
+        # order never breaks that escape hatch.
+        if translation_registry:
+            group = translation_registry.get(ref_id)
+            if group:
+                return (
+                    group.get(lang)
+                    or group.get(default_language)
+                    or next(iter(group.values()))
+                )
+        return registry.get(ref_id)
+
     def _replace(match: re.Match) -> str:
         is_escaped = bool(match.group(1))
-        is_embed = bool(match.group(2))
-        ref_id = match.group(3)
-        label = match.group(4)
+        ref_id = match.group(2)
+        label = match.group(3)
 
         if is_escaped:
             suffix = f"|{label}" if label else ""
-            return f"[[{'embed:' if is_embed else ''}{ref_id}{suffix}]]"
+            return f"[[{ref_id}{suffix}]]"
 
-        target = registry.get(ref_id)
+        target = _resolve_target(ref_id)
 
         if target is None:
-            kind = "embed" if is_embed else "reference"
             diagnostics.error(
-                f"[[{'embed:' if is_embed else ''}{ref_id}]]: Target of {kind} not found.",
+                f"[[{ref_id}]]: Target of reference not found.",
                 source=source,
             )
             # Keep it visible in the HTML to make it easier to spot the problem,
             # instead of silently making the author's text disappear.
             return f'<span class="broken-reference" title="Not found: {escape(ref_id)}">[[{escape(ref_id)}]]</span>'
-
-        if is_embed:
-            height = DEFAULT_EMBED_HEIGHT
-            if label and label.strip().isdigit():
-                height = int(label.strip())
-            else:
-                height = getattr(target, "height", DEFAULT_EMBED_HEIGHT)
-            title_attr = escape(getattr(target, "title", ref_id))
-            return (
-                f'<iframe src="{target.url}" title="{title_attr}" loading="lazy" '
-                f'style="width:100%;height:{height}px;border:0" '
-                f'class="asteria-embed"></iframe>'
-            )
 
         text = label.strip() if label else target.title
         return f'<a href="{target.url}">{escape(text)}</a>'
@@ -75,15 +111,24 @@ def resolve_references_for_all(
     documents: list[Any],
     diagnostics: Diagnostics,
     extra_targets: list[Any] | None = None,
+    default_language: str = "",
 ) -> None:
     
     registry = build_registry(documents)
     if extra_targets:
         registry.update(build_registry(extra_targets))
 
+    translation_registry = build_translation_registry(documents)
+
     for doc in documents:
         doc.content_html = resolve_references(
-            doc.content_html, registry, source=str(doc.source_path), diagnostics=diagnostics
+            doc.content_html,
+            registry,
+            source=str(doc.source_path),
+            diagnostics=diagnostics,
+            translation_registry=translation_registry,
+            lang=getattr(doc, "lang", "") or default_language,
+            default_language=default_language,
         )
 
 

@@ -1,4 +1,4 @@
-"""Tipos publicos retornados pela API (secao 2 da especificacao)."""
+"""Public types returned by the API (spec section 2)."""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -17,7 +17,7 @@ class WarningLevel(str, Enum):
 class Warning:
     message: str
     level: WarningLevel = WarningLevel.WARNING
-    source: str | None = None  # ex: "parser", "renderer", "assets"
+    source: str | None = None  # e.g. "parser", "renderer", "assets"
 
     def __str__(self) -> str:  # pragma: no cover - trivial
         return f"[{self.level.value}] {self.message}"
@@ -25,12 +25,12 @@ class Warning:
 
 @dataclass
 class Asset:
-    """Um recurso extraido do pacote ODT (normalmente uma imagem)."""
-    original_path: str  # caminho dentro do .odt, ex: Pictures/10000000...png
-    output_path: str  # caminho relativo referenciado pelo HTML
+    """A resource extracted from the ODT package (usually an image)."""
+    original_path: str  # path inside the .odt, e.g. Pictures/10000000...png
+    output_path: str  # relative path referenced by the HTML
     data: bytes = field(repr=False, default=b"")
     media_type: str | None = None
-    written_to: str | None = None  # caminho absoluto em disco, se escrito
+    written_to: str | None = None  # absolute path on disk, if written
 
 
 @dataclass
@@ -44,9 +44,9 @@ class ConversionResult:
 
     def write(self, output_dir: str, html_filename: str = "index.html",
               css_filename: str = "style.css") -> None:
-        """Escreve html/css/assets em output_dir. Usado internamente pela
-        API de alto nivel quando output_dir e' informado, mas tambem pode
-        ser chamado manualmente."""
+        """Writes html/css/assets to output_dir. Used internally by the
+        high-level API when output_dir is given, but can also be called
+        manually."""
         import os
 
         os.makedirs(output_dir, exist_ok=True)

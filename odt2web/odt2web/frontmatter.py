@@ -1,37 +1,6 @@
-"""Front matter (extensao para uso com SSGs).
+"""Recognizes a front matter block."""
 
-Reconhece um bloco de front matter no formato:
 
-    ---
-    title: Meu primeiro artigo
-    date: 2026-08-20
-    author: Autor
-    tags: Python, Web
-    categories: Tecnologia
-    ---
-
-posicionado como o primeiro elemento do documento ODT. No ODT, esse bloco
-pode chegar de duas formas, dependendo de como foi digitado:
-
-1. Como varios paragrafos consecutivos, um por linha (o mais comum ao
-   digitar no LibreOffice, onde Enter cria um novo paragrafo); ou
-2. Como um unico paragrafo com quebras de linha manuais
-   (Shift+Enter / text:line-break) entre cada linha.
-
-O bloco reconhecido é removido do fluxo normal do documento e retornado
-como um dict ordenado (chave -> valor bruto, sem interpretação YAML),
-para ser renderizado como:
-
-Parágrafos vazios antes do bloco (ex: um "cabeçalho" em branco deixado
-por um template do editor) são apenas ignorados na busca pelo
-delimitador - eles não são interpretados como front matter, mas também
-não podem impedir que o bloco seguinte seja reconhecido.
-
-    <div class="ssg-frontmatter" data-ssg="frontmatter">
-      <meta data-key="title" content="Meu primeiro artigo">
-      ...
-    </div>
-"""
 from __future__ import annotations
 
 from .model import LineBreak, Link, Paragraph, PageBreak, Section, Span, Text
@@ -52,16 +21,14 @@ def _plain_text(nodes: list, *, line_break_as_newline: bool = False) -> str:
 
 
 def _parse_kv_lines(lines: list[str]) -> dict[str, str] | None:
-    """Faz o parsing das linhas 'chave: valor' entre os delimitadores.
-    Retorna None se nenhuma linha valida for encontrada (bloco vazio nao
-    e' considerado front matter)."""
+
     data: dict[str, str] = {}
     for raw_line in lines:
         line = raw_line.strip()
         if not line:
             continue
         if ":" not in line:
-            # linha fora do padrao chave: valor -> nao e' front matter valido
+            # line outside the "key: value" pattern -> not valid front matter
             return None
         key, _, value = line.partition(":")
         key = key.strip()
@@ -73,42 +40,33 @@ def _parse_kv_lines(lines: list[str]) -> dict[str, str] | None:
 
 
 def extract_front_matter(section: Section) -> dict[str, str] | None:
-    """Tenta extrair e remover um bloco de front matter do inicio da
-    (primeira) secao do documento. Muta `section.children` in-place quando
-    encontra um bloco valido.
 
-    Paragrafos vazios que antecedem o bloco (comuns em cabecalhos/
-    templates do documento, ex: paragrafos em branco deixados pelo autor
-    antes do titulo) sao ignorados na busca pelo delimitador, mas
-    permanecem intocados no documento - apenas nao podem impedir a
-    deteccao do front matter que vem em seguida.
-    """
     children = section.children
 
     start_idx = 0
     while start_idx < len(children):
         node = children[start_idx]
         if isinstance(node, PageBreak):
-            # quebras de pagina antes do conteudo (comuns quando o
-            # primeiro paragrafo do documento tem "quebrar antes" no
-            # estilo) sao apenas puladas na busca.
+            # page breaks before the content (common when the document's
+            # first paragraph has "break before" set in its style) are
+            # just skipped during the search.
             start_idx += 1
             continue
         if not isinstance(node, Paragraph):
-            # algo alem de paragrafo/quebra de pagina (lista, tabela,
-            # imagem...) antes de qualquer texto: nao ha' front matter
-            # a procurar aqui.
+            # something other than a paragraph/page break (list, table,
+            # image...) before any text: there is no front matter to
+            # look for here.
             return None
         if _plain_text(node.children).strip() != "":
             break
         start_idx += 1
     else:
-        return None  # todos os nos iniciais eram vazios/quebras de pagina
+        return None  # all leading nodes were empty/page breaks
 
     if start_idx >= len(children):
         return None
 
-    # --- Caso 1: paragrafos consecutivos, um por linha -----------------
+    # --- Case 1: consecutive paragraphs, one per line -------------------
     first_text = _plain_text(children[start_idx].children).strip()
     if first_text == DELIMITER:
         end_idx = None
@@ -130,7 +88,7 @@ def extract_front_matter(section: Section) -> dict[str, str] | None:
                 del children[start_idx:end_idx + 1]
                 return data
 
-    # --- Caso 2: um unico paragrafo com quebras de linha manuais -------
+    # --- Case 2: a single paragraph with manual line breaks -------------
     text_with_breaks = _plain_text(children[start_idx].children, line_break_as_newline=True)
     lines = text_with_breaks.split("\n")
     if len(lines) >= 3 and lines[0].strip() == DELIMITER:

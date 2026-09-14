@@ -45,3 +45,7 @@ And I will read some minds right now. Some of you are thinking:
 Friend, I will.
 
 It's very easy to tell when someone doesn't understand what they're doing with code. You just don't see it because **you don't understand what you're doing with code**, ahahah.
+
+## But I don't like Slop...
+
+No problem, just don't use the monorepo's content. Believe it or not, you aren't forced to. You can hate Slop all you want, as long as you don't come and hassle me about it. Asteria is a personal project for personal use. If you like it, you are welcome to use it too, but I will steer it in the direction I see fit.

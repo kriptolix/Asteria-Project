@@ -1,4 +1,6 @@
-"""Extracao de assets/recursos (secao 10 da especificacao)."""
+"""Asset extraction."""
+
+
 from __future__ import annotations
 
 import posixpath
@@ -27,13 +29,9 @@ def _guess_media_type(path: str) -> str | None:
 
 
 def extract_assets(document: Document, package: OdtPackage, assets_dir: str = "assets") -> list[Asset]:
-    """Percorre o Document Model coletando imagens incorporadas, extrai os
-    bytes do pacote ODT e reescreve Image.src para o caminho de saida
-    relativo (secao 10). Imagens referenciadas (linked=True) nao sao
-    extraidas - seu src e' preservado como URL externa.
-    """
+
     assets: list[Asset] = []
-    seen: dict[str, str] = {}  # original_path -> output_path (evita duplicatas)
+    seen: dict[str, str] = {}  # original_path -> output_path (avoids duplicates)
     counter = 1
 
     def visit_images(nodes):
@@ -44,7 +42,7 @@ def extract_assets(document: Document, package: OdtPackage, assets_dir: str = "a
                 if not original or not is_safe_relative_path(original):
                     continue
                 if original not in package.resources:
-                    continue  # recurso ausente/invalido (secao 18, item 15)
+                    continue  # missing/invalid resource
                 if original in seen:
                     node.src = seen[original]
                     continue

@@ -1,23 +1,6 @@
-"""HTML bruto embutido no ODT (escape-hatch generico, ver discussao no
-README - "por que nao inventar uma sintaxe por funcionalidade").
+"""Recognizes a block delimited by markers."""
 
-Reconhece um bloco delimitado por marcadores em qualquer ponto do fluxo
-do documento:
 
-    :::html
-    <iframe src="https://exemplo.com/mapa" width="600" height="400"></iframe>
-    :::
-
-posicionado como parágrafos proprios (um marcador por paragrafo) ou,
-alternativamente, como um unico paragrafo com quebras de linha manuais
-(Shift+Enter) entre o marcador de abertura, o conteudo e o marcador de
-fechamento - exatamente como o bloco de front matter (ver frontmatter.py).
-
-O conteudo entre os marcadores e' extraido como texto literal e
-convertido em um no RawHtml, que o renderer emite sem escaping *somente*
-quando o chamador habilita allow_raw_html=True (default False - trata-se
-de um escape-hatch de seguranca, ver security.py / secao 13).
-"""
 from __future__ import annotations
 
 from .model import LineBreak, Link, Paragraph, RawHtml, Span, Text
@@ -25,15 +8,15 @@ from .model import LineBreak, Link, Paragraph, RawHtml, Span, Text
 START_MARKER = ":::html"
 END_MARKER = ":::"
 
-# substituicoes tipograficas comuns que o autocorretor do LibreOffice
-# aplica ao digitar (aspas retas -> curvas, etc.) e que quebrariam HTML
-# como atributos de tag (href="...") se nao fossem revertidas dentro de
-# um bloco explicitamente marcado como codigo/HTML.
+# common typographic substitutions that LibreOffice's autocorrect applies
+# while typing (straight quotes -> curly quotes, etc.) which would break
+# HTML such as tag attributes (href="...") if not reverted inside a block
+# explicitly marked as code/HTML.
 _TYPOGRAPHY_FIXUPS = {
-    "\u201c": '"', "\u201d": '"',  # aspas duplas curvas -> retas
-    "\u2018": "'", "\u2019": "'",  # aspas simples curvas -> retas
-    "\u00a0": " ",  # espaco nao separavel -> espaco normal
-    "\u2026": "...",  # reticencias -> tres pontos
+    "\u201c": '"', "\u201d": '"',  # curly double quotes -> straight
+    "\u2018": "'", "\u2019": "'",  # curly single quotes -> straight
+    "\u00a0": " ",  # non-breaking space -> regular space
+    "\u2026": "...",  # ellipsis -> three dots
 }
 
 
@@ -56,9 +39,9 @@ def _plain_text(nodes: list, *, line_break_as_newline: bool = False) -> str:
 
 
 def extract_raw_html_blocks(children: list) -> list:
-    """Percorre uma lista de BlockNode substituindo blocos delimitados por
-    ':::html' / ':::' por um unico no RawHtml. Nao muta a lista original;
-    retorna uma nova lista."""
+    """Walks a list of BlockNode, replacing blocks delimited by
+    ':::html' / ':::' with a single RawHtml node. Does not mutate the
+    original list; returns a new list."""
     result: list = []
     i = 0
     n = len(children)
@@ -69,7 +52,7 @@ def extract_raw_html_blocks(children: list) -> list:
         if isinstance(node, Paragraph):
             text = _plain_text(node.children).strip()
 
-            # --- Caso 1: paragrafos consecutivos ------------------------
+            # --- Case 1: consecutive paragraphs -------------------------
             if text == START_MARKER:
                 end_idx = None
                 for j in range(i + 1, n):
@@ -90,7 +73,7 @@ def extract_raw_html_blocks(children: list) -> list:
                     i = end_idx + 1
                     continue
 
-            # --- Caso 2: um unico paragrafo com quebras de linha --------
+            # --- Case 2: a single paragraph with manual line breaks -----
             text_with_breaks = _plain_text(node.children, line_break_as_newline=True)
             lines = text_with_breaks.split("\n")
             if len(lines) >= 3 and lines[0].strip() == START_MARKER:

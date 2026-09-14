@@ -1,10 +1,6 @@
-"""Modelo de documento intermediário.
+"""Intermediate document model."""
 
-O parser ODT nunca gera HTML diretamente: primeiro constrói esta
-representação própria (independente de formato de saída), que depois
-pode ser consumida por diferentes renderers (HTML, e futuramente
-Markdown, JSON, etc. - ver secao 4 da especificacao).
-"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -12,18 +8,18 @@ from typing import Optional, Union
 
 
 # ---------------------------------------------------------------------------
-# Nos inline (formatacao de texto)
+# Inline nodes (text formatting)
 # ---------------------------------------------------------------------------
 
 @dataclass
 class Text:
-    """Texto simples, sem formatacao adicional."""
+    """Plain text, with no additional formatting."""
     value: str
 
 
 @dataclass
 class Span:
-    """Trecho de texto com formatacao ou estilo de caractere nomeado."""
+    """A run of text with formatting or a named character style."""
     children: list["InlineNode"] = field(default_factory=list)
     bold: bool = False
     italic: bool = False
@@ -31,8 +27,8 @@ class Span:
     strikethrough: bool = False
     superscript: bool = False
     subscript: bool = False
-    code: bool = False  # estilo de caractere "Source Text" (codigo inline)
-    style_name: Optional[str] = None  # nome do estilo ODT original, se houver
+    code: bool = False  # "Source Text" character style (inline code)
+    style_name: Optional[str] = None  # original ODT style name, if any
 
 
 @dataclass
@@ -48,33 +44,33 @@ class LineBreak:
 
 @dataclass
 class NoteRef:
-    """Referencia inline a uma nota de rodape (marcador numerado)."""
+    """Inline reference to a footnote/endnote (numbered marker)."""
     note_id: str
-    label: str  # numero/simbolo exibido, ex: "1"
+    label: str  # number/symbol displayed, e.g. "1"
 
 
 InlineNode = Union[Text, Span, Link, LineBreak, NoteRef]
 
 
 # ---------------------------------------------------------------------------
-# Nos de bloco
+# Block nodes
 # ---------------------------------------------------------------------------
 
 @dataclass
 class Paragraph:
     children: list[InlineNode] = field(default_factory=list)
     style_name: Optional[str] = None
-    # cadeia de identificadores candidatos (nome bruto + nomes decodificados
-    # de cada ancestral via parent-style-name) usada para resolver contra
-    # style_map/DEFAULT_STYLE_MAP - ver StyleRegistry.resolve_style_candidates
+    # chain of candidate identifiers (raw name + decoded names from each
+    # ancestor via parent-style-name) used to resolve against
+    # style_map/DEFAULT_STYLE_MAP - see StyleRegistry.resolve_style_candidates
     style_candidates: list[str] = field(default_factory=list)
-    # estilo semantico resolvido (ex: "Text Body", "Quotation")
+    # resolved semantic style (e.g. "Text Body", "Quotation")
     resolved_style: Optional[str] = None
 
 
 @dataclass
 class Heading:
-    level: int  # 1..6, ja normalizado
+    level: int  # 1..6, already normalized
     children: list[InlineNode] = field(default_factory=list)
     style_name: Optional[str] = None
     style_candidates: list[str] = field(default_factory=list)
@@ -98,7 +94,7 @@ class TableCell:
     colspan: int = 1
     rowspan: int = 1
     is_header: bool = False
-    covered: bool = False  # celula coberta por rowspan/colspan anterior
+    covered: bool = False  # cell covered by a preceding rowspan/colspan
 
 
 @dataclass
@@ -117,12 +113,12 @@ class Table:
 
 @dataclass
 class Image:
-    src: str  # caminho original dentro do pacote ODT (ex: Pictures/foo.png)
+    src: str  # original path inside the ODT package (e.g. Pictures/foo.png)
     alt: Optional[str] = None
     caption: Optional[str] = None
-    width: Optional[str] = None  # ja em unidade CSS (ex: "8.5cm")
+    width: Optional[str] = None  # already in a CSS unit (e.g. "8.5cm")
     height: Optional[str] = None
-    linked: bool = False  # True = imagem referenciada (externa), nao incorporada
+    linked: bool = False  # True = referenced (external) image, not embedded
 
 
 @dataclass
@@ -132,7 +128,7 @@ class PageBreak:
 
 @dataclass
 class Note:
-    """Uma nota de rodape/final, com seu conteudo, indexada por id."""
+    """A footnote/endnote, with its content, indexed by id."""
     note_id: str
     label: str
     children: list["BlockNode"] = field(default_factory=list)
@@ -141,29 +137,21 @@ class Note:
 
 @dataclass
 class CustomNode:
-    """No de extensao, tratado por um renderer registrado (secao 17)."""
-    name: str  # ex: "custom:note"
+    """Extension node, handled by a registered renderer (section 17)."""
+    name: str  # e.g. "custom:note"
     attributes: dict = field(default_factory=dict)
     children: list["BlockNode"] = field(default_factory=list)
 
 
 @dataclass
 class RawHtml:
-    """Bloco de HTML literal, escrito pelo autor dentro do ODT entre
-    marcadores (ex: ':::html' ... ':::') e passado adiante sem escaping.
-    So e' emitido quando o chamador habilita explicitamente essa
-    funcionalidade (allow_raw_html=True), por ser um escape-hatch de
-    seguranca (ver security.py / secao 13)."""
+    """Literal HTML block."""
     content: str
 
 
 @dataclass
 class CodeBlock:
-    """Bloco de codigo (varios paragrafos com estilo mapeado para <pre>
-    mesclados em um unico bloco, ver codeblocks.py). Renderizado como
-    <pre><code class="language-xxx">...</code></pre>, sem aplicar
-    formatacao inline (negrito/italico/etc.) ao conteudo - codigo e'
-    tratado como texto literal, para nao quebrar syntax highlighting."""
+    """Code block."""
     code: str
     language: Optional[str] = None
     css_class: Optional[str] = None
@@ -176,15 +164,15 @@ BlockNode = Union[
 
 
 # ---------------------------------------------------------------------------
-# Estrutura de secoes / documento
+# Section / document structure
 # ---------------------------------------------------------------------------
 
 @dataclass
 class Section:
     children: list[BlockNode] = field(default_factory=list)
     columns: int = 1
-    column_gap: Optional[str] = None  # unidade CSS, ex: "1.27cm"
-    column_rule: Optional[str] = None  # ex: "1px solid #000"
+    column_gap: Optional[str] = None  # CSS unit, e.g. "1.27cm"
+    column_rule: Optional[str] = None  # e.g. "1px solid #000"
     style_name: Optional[str] = None
     name: Optional[str] = None
 

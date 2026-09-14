@@ -1,7 +1,7 @@
-"""Configuracao via YAML (secao 16 da especificacao, adaptada de TOML
-para YAML).
+"""YAML-based configuration (spec section 16, adapted from TOML to
+YAML).
 
-Exemplo de arquivo aceito:
+Example of an accepted config file:
 
     output:
       document: false
@@ -35,20 +35,20 @@ def load_config(path: str) -> dict:
         try:
             data = yaml.safe_load(fh)
         except yaml.YAMLError as exc:
-            raise ConfigError(f"Erro ao ler config YAML '{path}': {exc}") from exc
+            raise ConfigError(f"Error reading YAML config '{path}': {exc}") from exc
     if data is None:
         return {}
     if not isinstance(data, dict):
         raise ConfigError(
-            f"Config YAML '{path}' deve ter um mapeamento na raiz "
-            f"(ex: 'output:', 'styles:'), nao {type(data).__name__}"
+            f"YAML config '{path}' must have a mapping at the root "
+            f"(e.g. 'output:', 'styles:'), not {type(data).__name__}"
         )
     return data
 
 
 def config_to_options(data: dict) -> dict:
-    """Converte a estrutura YAML em um dicionario de kwargs compativel com
-    a assinatura de convert()/convert_bytes()."""
+    """Converts the YAML structure into a kwargs dict compatible with
+    the convert()/convert_bytes() signature."""
     options: dict = {}
 
     output = data.get("output") or {}
@@ -65,7 +65,7 @@ def config_to_options(data: dict) -> dict:
 
     columns = data.get("columns") or {}
     if "enabled" in columns and not columns["enabled"]:
-        # desabilita deteccao de colunas forcando 1 coluna em todas as secoes
+        # disables column detection by forcing 1 column in every section
         options["disable_columns"] = True
 
     styles = data.get("styles")

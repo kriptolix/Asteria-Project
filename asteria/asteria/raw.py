@@ -12,15 +12,12 @@ import yaml
 from .errors import Diagnostics
 from .urls import build_url, slugify
 
-DEFAULT_EMBED_HEIGHT = 600
-
 
 @dataclass
 class RawPage:
     id: str
     source_dir: Path
     title: str = ""
-    height: int = DEFAULT_EMBED_HEIGHT
     slug: str = ""
     url: str = ""
 
@@ -50,7 +47,6 @@ def load_raw_page(
         id=source_dir.name,
         source_dir=source_dir,
         title=str(meta.get("title", "")) or source_dir.name,
-        height=int(meta.get("height", DEFAULT_EMBED_HEIGHT)),
     )
     page.url = build_url(url_pattern, slug=page.slug)
     return page

@@ -1,7 +1,7 @@
-"""Semantic Renderer - HTML (secao 3 / 5 / 6 / 7 / 8 / 12 da especificacao).
+"""Semantic Renderer - HTML (spec sections 3 / 5 / 6 / 7 / 8 / 12).
 
-Consome o Document Model (model.py) e produz HTML semantico. Nao conhece
-nada sobre o formato ODT/XML original.
+Consumes the Document Model (model.py) and produces semantic HTML. It
+knows nothing about the original ODT/XML format.
 """
 from __future__ import annotations
 
@@ -72,8 +72,8 @@ def _render_inline_node(node, ctx: RenderContext) -> str:
             inner = f"<code>{inner}</code>"
         elif not any([node.bold, node.italic, node.underline, node.strikethrough,
                       node.superscript, node.subscript]) and node.style_name:
-            # estilo de caractere sem formatacao reconhecida: preserva como
-            # classe CSS, para permitir customizacao posterior pelo usuario.
+            # character style with no recognized formatting: preserved as
+            # a CSS class, to allow later customization by the user.
             cls = f"odt-char-{_slugify(node.style_name)}"
             inner = f'<span class="{cls}">{inner}</span>'
         return inner
@@ -82,7 +82,7 @@ def _render_inline_node(node, ctx: RenderContext) -> str:
         inner = render_inline(node.children, ctx)
         href = sanitize_url(node.href)
         if href is None:
-            ctx.warnings.append(f"Link com URL insegura/invalida foi removido: {node.href!r}")
+            ctx.warnings.append(f"Link with unsafe/invalid URL was removed: {node.href!r}")
             return inner
         return f'<a href="{href}">{inner}</a>'
 
@@ -102,7 +102,7 @@ def _render_inline_node(node, ctx: RenderContext) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Blocos
+# Blocks
 # ---------------------------------------------------------------------------
 
 def render_block(node, ctx: RenderContext) -> str:
@@ -135,8 +135,8 @@ def _render_paragraph(node: Paragraph, ctx: RenderContext) -> str:
         if renderer is not None:
             return renderer(node, ctx)
         ctx.warnings.append(
-            f"Estilo '{node.style_name}' mapeado para '{tag}', mas nenhum "
-            "renderer foi registrado (ver register_renderer); usando <p> como fallback"
+            f"Style '{node.style_name}' mapped to '{tag}', but no "
+            "renderer was registered (see register_renderer); falling back to <p>"
         )
         tag, attrs = "p", {}
     if tag == "blockquote":
@@ -152,8 +152,8 @@ def _render_heading(node: Heading, ctx: RenderContext) -> str:
     if mapping is not None:
         tag, attrs = mapping
         if not (len(tag) == 2 and tag[0] == "h" and tag[1].isdigit()):
-            # mapeamento customizado nao aponta para um heading; ainda assim
-            # respeitamos a escolha explicita do usuario (secao 7).
+            # a custom mapping that does not point to a heading tag; we
+            # still honor the user's explicit choice (section 7).
             inner = render_inline(node.children, ctx)
             return f"<{tag}{_render_attrs(attrs)}>{inner}</{tag}>\n"
     else:
@@ -211,7 +211,7 @@ def _render_image(node: Image, ctx: RenderContext) -> str:
     if node.linked:
         src = sanitize_url(node.src)
         if src is None:
-            ctx.warnings.append(f"Imagem referenciada com URL insegura foi removida: {node.src!r}")
+            ctx.warnings.append(f"Referenced image with unsafe URL was removed: {node.src!r}")
             return ""
     else:
         src = escape_attr(node.src)
@@ -239,31 +239,32 @@ def _render_page_break(node: PageBreak, ctx: RenderContext) -> str:
 def _render_custom(node: CustomNode, ctx: RenderContext) -> str:
     renderer = ctx.custom_renderers.get(node.name)
     if renderer is None:
-        ctx.warnings.append(f"Nenhum renderer registrado para '{node.name}'; elemento ignorado")
+        ctx.warnings.append(f"No renderer registered for '{node.name}'; element ignored")
         return ""
     return renderer(node, ctx)
 
 
 def _render_raw_html(node: RawHtml, ctx: RenderContext) -> str:
-    """Emite um bloco ':::html' literal (ver rawhtml.py). So passa o
-    conteudo adiante sem escaping se allow_raw_html estiver habilitado
-    explicitamente (secao 13 - o .odt e' tratado como entrada nao
-    confiavel por padrao; isso e' um escape-hatch opt-in)."""
+    """Emits a literal ':::html' block (see rawhtml.py). Only passes the
+    content through unescaped if allow_raw_html is explicitly enabled
+    (section 13 - the .odt is treated as untrusted input by default;
+    this is an opt-in escape hatch)."""
     ctx.features.add("raw-html")
     if not ctx.allow_raw_html:
         ctx.warnings.append(
-            "Bloco ':::html' encontrado, mas allow_raw_html=False; o "
-            "conteudo foi escapado e exibido como texto em vez de HTML"
+            "':::html' block found, but allow_raw_html=False; the "
+            "content was escaped and shown as text instead of HTML"
         )
         return f"<pre class=\"odt-raw-html-disabled\">{escape_text(node.content)}</pre>\n"
     return node.content.strip() + "\n"
 
 
 def _render_code_block(node: CodeBlock, ctx: RenderContext) -> str:
-    """Renderiza um bloco de codigo mesclado (ver codeblocks.py) como
-    <pre><code class="language-xxx">...</code></pre> - o formato esperado
-    por syntax highlighters como highlight.js, Prism ou Shiki. Esta
-    biblioteca nao faz highlighting; apenas entrega a marcacao."""
+    """Renders a merged code block (see codeblocks.py) as
+    <pre><code class="language-xxx">...</code></pre> - the format
+    expected by syntax highlighters like highlight.js, Prism or Shiki.
+    This library does not do the highlighting itself; it only delivers
+    the markup."""
     ctx.features.add("pre")
     ctx.features.add("code-block")
     css_class = node.css_class
@@ -274,7 +275,7 @@ def _render_code_block(node: CodeBlock, ctx: RenderContext) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Secoes / notas / documento
+# Sections / notes / document
 # ---------------------------------------------------------------------------
 
 def render_section(section: Section, ctx: RenderContext) -> str:
@@ -304,7 +305,7 @@ def render_notes(document: Document, ctx: RenderContext) -> str:
 
 
 def render_front_matter(front_matter: dict | None) -> str:
-    """Renderiza o front matter extraido (ver frontmatter.py) como:
+    """Renders the extracted front matter (see frontmatter.py) as:
 
         <div class="ssg-frontmatter" data-ssg="frontmatter">
           <meta data-key="title" content="...">
@@ -329,9 +330,9 @@ def render_document(
     custom_renderers: dict[str, CustomRenderer] | None = None,
     allow_raw_html: bool = False,
 ) -> tuple[str, RenderContext]:
-    """Renderiza o documento inteiro (front matter + todas as secoes +
-    notas) e retorna (html_do_corpo, contexto) - o contexto carrega os
-    `features` usados, necessarios para o gerador de CSS (secao 9)."""
+    """Renders the whole document (front matter + all sections + notes)
+    and returns (body_html, context) - the context carries the
+    `features` used, needed by the CSS generator (section 9)."""
     ctx = RenderContext(
         style_map=style_map or {}, custom_renderers=custom_renderers or {},
         allow_raw_html=allow_raw_html,
@@ -343,7 +344,7 @@ def render_document(
 
 
 def wrap_full_document(body_html: str, css: str | None, metadata) -> str:
-    """Envolve o fragmento em um documento HTML completo (secao 12)."""
+    """Wraps the fragment in a complete HTML document (section 12)."""
     lang = metadata.language or "pt"
     head_parts = ['<meta charset="utf-8">']
     if metadata.title:

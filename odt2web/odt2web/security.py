@@ -1,14 +1,6 @@
-"""Funcoes de seguranca (secao 13 da especificacao).
+"""Security-related functions."""
 
-O .odt deve ser tratado como entrada nao confiavel:
-- texto e' sempre escapado antes de entrar no HTML;
-- URLs sao validadas contra uma lista de esquemas permitidos, para evitar
-  a inclusao de caminhos de arquivo locais (file://) ou esquemas
-  potencialmente perigosos (javascript:, data: arbitrario, etc.);
-- nenhuma macro, script ou conteudo incorporado do ODT e' executado -
-  o pacote simplesmente nao possui codigo capaz de interpretar macros
-  Basic/Python do ODF, entao esse conteudo e' ignorado por construcao.
-"""
+
 from __future__ import annotations
 
 import html as _html
@@ -17,26 +9,26 @@ from urllib.parse import urlparse
 
 ALLOWED_URL_SCHEMES = {"http", "https", "mailto", "tel", ""}
 
-# esquemas explicitamente perigosos ou que permitem escapar do sandbox do
-# navegador / do diretorio de saida.
+# schemes that are explicitly dangerous or that allow escaping the
+# browser sandbox / the output directory.
 _DANGEROUS_SCHEMES = {"javascript", "file", "vbscript", "data"}
 
 
 def escape_text(value: str) -> str:
-    """Escapa texto para uso seguro em conteudo HTML."""
+    """Escapes text for safe use in HTML content."""
     return _html.escape(value, quote=False)
 
 
 def escape_attr(value: str) -> str:
-    """Escapa texto para uso seguro dentro de um atributo HTML (aspas duplas)."""
+    """Escapes text for safe use inside an HTML attribute (double quotes)."""
     return _html.escape(value, quote=True)
 
 
 def sanitize_url(url: str, *, allow_relative: bool = True) -> str | None:
-    """Sanitiza uma URL vinda do documento ODT.
+    """Sanitizes a URL coming from the ODT document.
 
-    Retorna None se a URL for considerada perigosa (nesse caso o chamador
-    deve omitir o link/atributo em vez de gera-lo).
+    Returns None if the URL is considered dangerous (in that case the
+    caller should omit the link/attribute instead of generating it).
     """
     if url is None:
         return None
@@ -44,8 +36,8 @@ def sanitize_url(url: str, *, allow_relative: bool = True) -> str | None:
     if not url:
         return None
 
-    # normaliza espacos em branco internos usados para ofuscar esquemas,
-    # ex: "java\tscript:alert(1)"
+    # normalize internal whitespace used to obfuscate schemes,
+    # e.g. "java\tscript:alert(1)"
     stripped = re.sub(r"[\s\x00-\x1f]+", "", url)
     parsed = urlparse(stripped)
     scheme = parsed.scheme.lower()
@@ -54,8 +46,8 @@ def sanitize_url(url: str, *, allow_relative: bool = True) -> str | None:
         return None
 
     if scheme and scheme not in ALLOWED_URL_SCHEMES:
-        # esquemas desconhecidos (ftp:, custom:, etc.) sao rejeitados por
-        # padrao - a lista de permitidos pode ser estendida no futuro.
+        # unknown schemes (ftp:, custom:, etc.) are rejected by default -
+        # the allowlist can be extended in the future.
         return None
 
     if not scheme and not allow_relative:
@@ -65,8 +57,8 @@ def sanitize_url(url: str, *, allow_relative: bool = True) -> str | None:
 
 
 def is_safe_relative_path(path: str) -> bool:
-    """Verifica que um caminho relativo de asset nao escapa do diretorio
-    de saida (protege contra path traversal via nomes de arquivo no ODT)."""
+    """Checks that a relative asset path does not escape the output
+    directory (protects against path traversal via file names in the ODT)."""
     if not path:
         return False
     if path.startswith("/") or path.startswith("\\"):

@@ -1,7 +1,7 @@
-"""Parser: content.xml -> Document Model (secoes 4 e 5 da especificacao).
+"""Parser: content.xml -> Document Model (spec sections 4 and 5).
 
-O parser nunca gera HTML diretamente; produz o modelo intermediario
-definido em model.py.
+The parser never generates HTML directly; it produces the intermediate
+model defined in model.py.
 """
 from __future__ import annotations
 
@@ -75,9 +75,9 @@ def _convert_child_inline(child: ET.Element, ctx: ParseContext) -> list:
         if display_name in ("Source Text", "Teletype", "Typewriter") or any(
             c in ("Source Text", "Teletype", "Typewriter") for c in candidates
         ):
-            # estilos de caractere nativos do LibreOffice/ODF usados
-            # convencionalmente para codigo inline (podem chegar via um
-            # estilo automatico intermediario, ex: 'T1' -> 'Source Text').
+            # native LibreOffice/ODF character styles conventionally used
+            # for inline code (may arrive via an intermediate automatic
+            # style, e.g. 'T1' -> 'Source Text').
             span.code = True
         return [span]
 
@@ -103,17 +103,17 @@ def _convert_child_inline(child: ET.Element, ctx: ParseContext) -> list:
         return [_handle_note(child, ctx)]
 
     if tag == q("draw:frame"):
-        # imagens embutidas no meio de um paragrafo com outro texto nao
-        # sao suportadas como Image (que e' um BlockNode); registramos
-        # apenas um aviso para nao perder o restante do texto.
+        # images embedded in the middle of a paragraph with other text
+        # are not supported as an Image (which is a BlockNode); we just
+        # record a warning so the rest of the text isn't lost.
         ctx.warnings.append(
-            "Imagem embutida no meio de um paragrafo com texto foi ignorada "
-            "(apenas imagens em paragrafos proprios sao suportadas)"
+            "Image embedded in the middle of a paragraph with text was "
+            "ignored (only images in their own paragraph are supported)"
         )
         return []
 
-    # elementos "transparentes" (marcadores, alteracoes rastreadas, etc.):
-    # descemos nos filhos preservando o texto.
+    # "transparent" elements (bookmarks, tracked changes, etc.): we
+    # descend into the children, preserving the text.
     return _inline_from_element(child, ctx)
 
 
@@ -135,12 +135,12 @@ def _handle_note(note_el: ET.Element, ctx: ParseContext) -> NoteRef:
 
 
 # ---------------------------------------------------------------------------
-# Blocos
+# Blocks
 # ---------------------------------------------------------------------------
 
 def _find_solo_image_frame(p_el: ET.Element) -> ET.Element | None:
-    """Se o paragrafo contem apenas uma imagem (draw:frame > draw:image) e
-    nenhum outro texto significativo, retorna o elemento draw:frame."""
+    """If the paragraph contains only an image (draw:frame > draw:image)
+    and no other significant text, returns the draw:frame element."""
     if p_el.text and p_el.text.strip():
         return None
     frame = None
@@ -277,14 +277,14 @@ def _parse_table(el: ET.Element, ctx: ParseContext) -> Table:
         except ValueError:
             repeat = 1
         column_widths.extend([width] * repeat)
-        _ = col_info  # largura de coluna detalhada fica fora do MVP
+        _ = col_info  # detailed column width is out of scope for the MVP
 
     return Table(rows=rows, style_name=style_name, column_widths=column_widths)
 
 
 def _attach_captions(nodes: list) -> list:
-    """Funde uma Image seguida de um paragrafo com estilo 'Caption' em
-    Image.caption (secao 5 'imagens' - legenda)."""
+    """Merges an Image followed by a paragraph styled 'Caption' into
+    Image.caption (section 5 'images' - caption)."""
     result: list = []
     i = 0
     while i < len(nodes):
@@ -332,7 +332,7 @@ def _parse_block_element(el: ET.Element, ctx: ParseContext) -> list:
 
 
 # ---------------------------------------------------------------------------
-# Secoes / documento
+# Sections / document
 # ---------------------------------------------------------------------------
 
 def _parse_section_element(section_el: ET.Element, ctx: ParseContext) -> Section:
@@ -343,8 +343,8 @@ def _parse_section_element(section_el: ET.Element, ctx: ParseContext) -> Section
         tag = child.tag
         if tag == BLOCK_SECTION:
             ctx.warnings.append(
-                "Secoes ODT aninhadas nao sao totalmente suportadas; "
-                "o conteudo foi mesclado na secao pai"
+                "Nested ODT sections are not fully supported; the "
+                "content was merged into the parent section"
             )
             nested = _parse_section_element(child, ctx)
             children.extend(nested.children)
@@ -379,9 +379,9 @@ def _parse_top_sections(text_root: ET.Element, ctx: ParseContext) -> list[Sectio
         elif tag in (BLOCK_P, BLOCK_H, BLOCK_LIST, BLOCK_TABLE, BLOCK_SOFT_PAGE_BREAK):
             current.extend(_parse_block_element(child, ctx))
         else:
-            # text:sequence-decls, text:tracked-changes, text:table-of-content
-            # (indices) e outros elementos fora do escopo do MVP sao
-            # silenciosamente ignorados.
+            # text:sequence-decls, text:tracked-changes,
+            # text:table-of-content (indexes) and other elements out of
+            # scope for the MVP are silently ignored.
             continue
 
     flush()
@@ -389,7 +389,7 @@ def _parse_top_sections(text_root: ET.Element, ctx: ParseContext) -> list[Sectio
 
 
 def parse_document(package: OdtPackage, custom_renderers: dict | None = None) -> Document:
-    """Constroi o Document Model a partir de um OdtPackage ja lido."""
+    """Builds the Document Model from an already-read OdtPackage."""
     registry = build_style_registry(package.styles_xml, package.content_xml)
     list_styles = build_list_style_registry(package.styles_xml, package.content_xml)
 
@@ -401,14 +401,14 @@ def parse_document(package: OdtPackage, custom_renderers: dict | None = None) ->
 
     body = package.content_xml.find(q("office:body"))
     if body is None:
-        document.warnings.append("content.xml nao contem office:body")
+        document.warnings.append("content.xml does not contain office:body")
         return document
 
     text_root = body.find(q("office:text"))
     if text_root is None:
         document.warnings.append(
-            "Documento nao contem office:text (pode nao ser um documento de "
-            "texto ODF, ex: planilha ou apresentacao)"
+            "Document does not contain office:text (it may not be an "
+            "ODF text document, e.g. a spreadsheet or presentation)"
         )
         return document
 
