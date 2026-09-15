@@ -5,7 +5,7 @@ Build pipeline orchestration
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from markupsafe import Markup
@@ -28,7 +28,13 @@ from .references import (
 from .sitemap import SitemapEntry, render_sitemap
 from .social import build_social_links
 from .taxonomy import Term, collect_categories, collect_tags
-from .templating import apply_asset_manifest, create_environment, make_site_view, render_template
+from .templating import (
+    SiteView,
+    apply_asset_manifest,
+    create_environment,
+    make_site_view,
+    render_template,
+)
 from .theme_config import load_theme_config
 from .toc import inject_heading_ids_and_build_toc
 from .urls import build_url, prefix_lang, url_to_output_dir, url_to_output_path
@@ -164,7 +170,9 @@ def _build_menu(
                 diagnostics.warning(
                     f"menu: page '{page_id}' not found (checked both as an "
                     "exact page id and as a translation_key).",
-                    source="theme.yaml",
+                    # `menu:` now lives in site.yaml, not theme.yaml — see
+                    # SiteConfig.menu_config.
+                    source="site.yaml",
                 )
                 url = "#"
             else:
@@ -190,30 +198,32 @@ def _build_menu(
     return menu_items
 
 
-def _theme_ns_for_lang(
-    theme_ns: dict,
+def _site_view_for_lang(
+    site_view: SiteView,
     menus_by_lang: dict[str, list[dict[str, str]]],
     navs_by_lang: dict[str, list[NavEntry]],
     lang: str,
     default_language: str,
-) -> dict:
-    """Returns the theme namespace to use for content in `lang`: a shallow
-    copy of `theme_ns` with 'menu' and 'nav' swapped for the versions
-    built for that language (falling back to the default language's
-    version if `lang` has none of its own — e.g. a document whose
-    language isn't listed in i18n.languages). Everything else (social,
-    sidebar_toc, ...) stays shared, since only menu/nav are currently
-    built per language.
+) -> SiteView:
+    """Returns the SiteView to use for content in `lang`: a shallow copy
+    of `site_view` with `menu` and `nav` swapped for the versions built
+    for that language (falling back to the default language's version if
+    `lang` has none of its own — e.g. a document whose language isn't
+    listed in i18n.languages). Everything else (social, title, ...) stays
+    shared, since only menu/nav are currently built per language.
 
-    Returns `theme_ns` itself, unmodified, when both already match the
+    Mirrors what `_theme_ns_for_lang` used to do before `menu`/`nav`
+    moved from `theme` to `site` — see templating.SiteView.
+
+    Returns `site_view` itself, unmodified, when both already match the
     target — avoids a pointless copy for the common case (most documents
-    are in the default language, which is what `theme_ns` is
+    are in the default language, which is what `site_view` is
     pre-populated with)."""
     menu = menus_by_lang.get(lang) or menus_by_lang.get(default_language, [])
     nav = navs_by_lang.get(lang) or navs_by_lang.get(default_language, [])
-    if menu is theme_ns.get("menu") and nav is theme_ns.get("nav"):
-        return theme_ns
-    return {**theme_ns, "menu": menu, "nav": nav}
+    if menu is site_view.menu and nav is site_view.nav:
+        return site_view
+    return replace(site_view, menu=menu, nav=nav)
 
 
 def _breadcrumbs_for_page(config: SiteConfig, page: Page) -> list[dict[str, str]]:
@@ -238,7 +248,7 @@ def _breadcrumbs_for_post(config: SiteConfig, post: Post) -> list[dict[str, str]
 
 def _document_context(
     config: SiteConfig,
-    site_view,
+    site_view: SiteView,
     theme_ns: dict,
     doc: Document,
     breadcrumbs: list[dict[str, str]],
@@ -254,7 +264,7 @@ def _document_context(
         "canonical_path": doc.url,
         "og_type": "article" if doc.kind == "post" else "website",
         "show_toc": theme_ns["sidebar_toc"] and doc.toc_enabled,
-        "show_navigation": bool(theme_ns["nav"]) and doc.navigation_enabled,
+        "show_navigation": bool(site_view.nav) and doc.navigation_enabled,
         "lang": doc.lang or config.default_language,
     }
 
@@ -287,6 +297,8 @@ def run_build(
     diagnostics = Diagnostics()
     config_path = project_root / "source" /config_filename
     config = load_config(config_path)
+
+    print(config.theme_dir) 
 
     if not config.theme_dir.exists():
         raise AsteriaError(
@@ -326,10 +338,17 @@ def run_build(
     for page in pages:
         pages_by_translation_key.setdefault(page.translation_key, {})[page.lang] = page
 
-    theme_config_raw = load_theme_config(config.theme_dir)
+    # `nav`, `menu`, and `social` are read from site.yaml (SiteConfig), not
+    # from theme.yaml: they reference this site's page/post ids and
+    # accounts, which is site data — see the note on config.DEFAULTS and
+    # SiteConfig.nav_config/menu_config/social_config. theme.yaml is only
+    # merged with the site's `theme.params` override (theme-exclusive,
+    # content-agnostic settings like colors or layout toggles) — see
+    # theme_config.load_theme_config.
+    theme_config_raw = load_theme_config(config.theme_dir, config.theme_params)
     menus_by_lang: dict[str, list[dict[str, str]]] = {
         lang: _build_menu(
-            theme_config_raw.get("menu", []), config, pages_by_id,
+            config.menu_config, config, pages_by_id,
             pages_by_translation_key, posts, lang, diagnostics,
         )
         for lang in config.languages
@@ -341,24 +360,31 @@ def run_build(
     nav_translation_registry = build_translation_registry([*pages, *posts])
     navs_by_lang: dict[str, list[NavEntry]] = {
         lang: build_nav(
-            theme_config_raw.get("nav", []), nav_registry, diagnostics,
+            config.nav_config, nav_registry, diagnostics,
             translation_registry=nav_translation_registry,
             lang=lang, default_language=config.default_language,
         )
         for lang in config.languages
     }
-    social_links = build_social_links(theme_config_raw.get("social", []))
-    
+    social_links = build_social_links(config.social_config)
+
     theme_ns: dict = dict(theme_config_raw)
-    # Default-language menu; per-document/per-page renders below swap this
-    # for the right language via `_theme_ns_for_lang`.
-    theme_ns["menu"] = menus_by_lang.get(config.default_language, [])
-    theme_ns["nav"] = navs_by_lang.get(config.default_language, [])
-    theme_ns["social"] = social_links   
+    # `menu`/`nav`/`social` no longer live here — they're on `site_view`
+    # now (see templating.SiteView). `theme_ns` only carries genuinely
+    # theme-exclusive, content-agnostic settings.
     theme_ns.setdefault("sidebar_toc", True)
     theme_ns.setdefault("default_variant", "light")
 
-    site_view = make_site_view(config, feed_url=feed_url)
+    # Default-language menu/nav; per-document/per-page renders below swap
+    # these for the right language via `_site_view_for_lang`. `social`
+    # isn't built per language, so it's set once here.
+    site_view = make_site_view(
+        config,
+        feed_url=feed_url,
+        menu=menus_by_lang.get(config.default_language, []),
+        nav=navs_by_lang.get(config.default_language, []),
+        social=social_links,
+    )
 
     env = create_environment(config)
 
@@ -402,9 +428,9 @@ def run_build(
 
     # -- pages --------------------------------------------------------------
     for page in pages:
-        page_theme_ns = _theme_ns_for_lang(theme_ns, menus_by_lang, navs_by_lang, page.lang, config.default_language)
+        page_site_view = _site_view_for_lang(site_view, menus_by_lang, navs_by_lang, page.lang, config.default_language)
         context = _document_context(
-            config, site_view, page_theme_ns, page, _breadcrumbs_for_page(config, page)
+            config, page_site_view, theme_ns, page, _breadcrumbs_for_page(config, page)
         )
         html = _finalize_html(render_template(env, "page.html", context), live_reload_script)
         if not dry_run:
@@ -418,9 +444,9 @@ def run_build(
 
     # -- posts ------------------------------------------------------------
     for post in posts:
-        post_theme_ns = _theme_ns_for_lang(theme_ns, menus_by_lang, navs_by_lang, post.lang, config.default_language)
+        post_site_view = _site_view_for_lang(site_view, menus_by_lang, navs_by_lang, post.lang, config.default_language)
         context = _document_context(
-            config, site_view, post_theme_ns, post, _breadcrumbs_for_post(config, post)
+            config, post_site_view, theme_ns, post, _breadcrumbs_for_post(config, post)
         )
         html = _finalize_html(render_template(env, "post.html", context), live_reload_script)
         if not dry_run:
@@ -437,7 +463,7 @@ def run_build(
     # idiomas diferentes num mesmo índice/feed/nuvem de tags.
     for lang in config.languages:
         is_default_lang = lang == config.default_language
-        lang_theme_ns = _theme_ns_for_lang(theme_ns, menus_by_lang, navs_by_lang, lang, config.default_language)
+        lang_site_view = _site_view_for_lang(site_view, menus_by_lang, navs_by_lang, lang, config.default_language)
         lang_posts = [p for p in posts if p.lang == lang]
         lang_posts_desc = sorted(lang_posts, key=lambda p: p.sort_key(), reverse=True)
 
@@ -449,11 +475,11 @@ def run_build(
                     env,
                     "blog.html",
                     {
-                        "site": site_view,
-                        "theme": lang_theme_ns,
+                        "site": lang_site_view,
+                        "theme": theme_ns,
                         "posts": blog_page.items,
                         "pagination": blog_page,
-                        "theme_css": lang_theme_ns["default_variant"],
+                        "theme_css": theme_ns["default_variant"],
                         "canonical_path": blog_page.url,
                         "og_type": "website",
                         "show_navigation": False,
@@ -485,12 +511,12 @@ def run_build(
                 term.url = prefix_lang(term.url, lang, config.default_language)
 
         sitemap_entries += _write_taxonomy(
-            config, env, site_view, lang_theme_ns, lang_tags,
+            config, env, lang_site_view, theme_ns, lang_tags,
             kind_label="Tags", index_url=tags_index_url,
             dry_run=dry_run, live_reload_script=live_reload_script,
         )
         sitemap_entries += _write_taxonomy(
-            config, env, site_view, lang_theme_ns, lang_categories,
+            config, env, lang_site_view, theme_ns, lang_categories,
             kind_label="Categorias", index_url=categories_index_url,
             dry_run=dry_run, live_reload_script=live_reload_script,
         )

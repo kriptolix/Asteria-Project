@@ -119,6 +119,11 @@ class Image:
     width: Optional[str] = None  # already in a CSS unit (e.g. "8.5cm")
     height: Optional[str] = None
     linked: bool = False  # True = referenced (external) image, not embedded
+    # horizontal alignment as authored in the ODT frame's graphic style
+    # ("left" | "center" | "right"), when it could be determined -
+    # surfaced by the renderer as an "odt-image-align-*" class rather
+    # than inline positioning, so SSG-side CSS controls the actual layout.
+    align: Optional[str] = None
 
 
 @dataclass

@@ -1,10 +1,9 @@
-"""Semantic Renderer - HTML (spec sections 3 / 5 / 6 / 7 / 8 / 12).
+"""Produces semantic HTML."""
 
-Consumes the Document Model (model.py) and produces semantic HTML. It
-knows nothing about the original ODT/XML format.
-"""
+
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import Callable
 
@@ -206,6 +205,65 @@ def _render_table(node: Table, ctx: RenderContext) -> str:
     return "".join(parts)
 
 
+# width (or, failing that, height) thresholds in cm used to bucket an
+# image into a coarse size class - just enough for SSG-side CSS to tell
+# "this was a small/medium/large image in the source document" apart,
+# without hard-coding the document's original print dimensions.
+_IMAGE_SIZE_THRESHOLDS_CM = (("small", 6.0), ("medium", 12.0))  # else "large"
+
+_CM_PER_UNIT = {"cm": 1.0, "mm": 0.1, "in": 2.54, "pt": 2.54 / 72, "px": 2.54 / 96}
+_LENGTH_RE = re.compile(r"^\s*([0-9]*\.?[0-9]+)\s*([a-z%]*)\s*$")
+
+
+def _length_to_cm(value: str | None) -> float | None:
+    """Converts a CSS length such as '8.5cm' or '120px' into centimeters,
+    for classification purposes only (the original string is still used
+    verbatim wherever exact dimensions are rendered)."""
+    if not value:
+        return None
+    match = _LENGTH_RE.match(value)
+    if not match:
+        return None
+    number, unit = match.groups()
+    factor = _CM_PER_UNIT.get(unit or "cm")
+    if factor is None:  # unknown/relative unit (%, em...) - can't classify
+        return None
+    try:
+        return float(number) * factor
+    except ValueError:
+        return None
+
+
+def _image_size_class(node: Image) -> str | None:
+    size_cm = _length_to_cm(node.width) or _length_to_cm(node.height)
+    if size_cm is None:
+        return None
+    for label, threshold in _IMAGE_SIZE_THRESHOLDS_CM:
+        if size_cm <= threshold:
+            return f"odt-image-{label}"
+    return "odt-image-large"
+
+
+def _image_orientation_class(node: Image) -> str | None:
+    width_cm = _length_to_cm(node.width)
+    height_cm = _length_to_cm(node.height)
+    if width_cm is None or height_cm is None:
+        return None
+    if abs(width_cm - height_cm) < 0.05:
+        return "odt-image-square"
+    return "odt-image-landscape" if width_cm > height_cm else "odt-image-portrait"
+
+
+def _image_classes(node: Image) -> list[str]:
+    classes = ["odt-image"]
+    for cls in (_image_size_class(node), _image_orientation_class(node)):
+        if cls:
+            classes.append(cls)
+    if node.align:
+        classes.append(f"odt-image-align-{node.align}")
+    return classes
+
+
 def _render_image(node: Image, ctx: RenderContext) -> str:
     ctx.features.add("image")
     if node.linked:
@@ -223,12 +281,21 @@ def _render_image(node: Image, ctx: RenderContext) -> str:
         style_parts.append(f"height:{node.height}")
     style_attr = f' style="{"; ".join(style_parts)}"' if style_parts else ""
     alt = escape_attr(node.alt or "")
-    img_tag = f'<img src="{src}" alt="{alt}"{style_attr}>'
+    classes = _image_classes(node)
 
     if node.caption:
+        # classes go on the <figure> (not the <img>), since alignment and
+        # sizing are block-level concerns once there's a caption below it.
         ctx.features.add("figure")
-        return f"<figure>{img_tag}<figcaption>{escape_text(node.caption)}</figcaption></figure>\n"
-    return img_tag + "\n"
+        img_tag = f'<img src="{src}" alt="{alt}"{style_attr}>'
+        figure_class = escape_attr(" ".join(classes))
+        return (
+            f'<figure class="{figure_class}">{img_tag}'
+            f"<figcaption>{escape_text(node.caption)}</figcaption></figure>\n"
+        )
+
+    img_class = escape_attr(" ".join(classes))
+    return f'<img src="{src}" alt="{alt}" class="{img_class}"{style_attr}>\n'
 
 
 def _render_page_break(node: PageBreak, ctx: RenderContext) -> str:

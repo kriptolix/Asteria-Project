@@ -164,18 +164,23 @@ def serve(
         httpd.shutdown()
         return 0
 
+    # Mirrors run_build's own path resolution (project_root / "source" /
+    # config_filename): all editable project files — content, static
+    # assets, themes, site.yaml — live under source/, not directly under
+    # project_root.
+    source_dir = project_root / "source"
     watch_paths = [
         p
         for p in [
-            project_root / "content",
-            project_root / "static",
-            project_root / "theme",
-            project_root / "site.yaml",
+            source_dir / "content",
+            source_dir / "static",
+            source_dir / "themes",
+            source_dir / "site.yaml",
         ]
         if p.exists()
     ]
     if not watch_paths:
-        print("Nothing to observe (content/static/theme/site.yaml not found).")
+        print("Nothing to observe (source/content, source/static, source/themes, source/site.yaml not found).")
         _idle_until_interrupted()
         httpd.shutdown()
         return 0

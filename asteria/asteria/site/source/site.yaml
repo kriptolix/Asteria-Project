@@ -6,10 +6,13 @@ site:
   home_page: "welcome"
 
 theme:
-    name: "minimal"
+  name: "minimal"
 
-# Menu, navigation, social links, and other presentation settings
-# are located in themes/<name>/theme.yaml (the theme's own namespace), not
-# here. More options in this file (feeds, taxonomies, URLs, etc.) have
-# reasonable default values ​​and don't need to be configured now. See the
-# Asteria DOCUMENTATION for complete examples.
+menu:
+  - page: "welcome"
+    title: "Start"
+
+social:
+  - platform: email
+    url: "mailto:contact@example.com"
+    label: E-mail

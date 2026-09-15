@@ -156,7 +156,14 @@ def _find_solo_image_frame(p_el: ET.Element) -> ET.Element | None:
     return None
 
 
-def _build_image_node(frame_el: ET.Element) -> Image:
+# ODF horizontal-pos values that map cleanly onto a left/center/right
+# alignment class; "from-left" (an absolute offset), "inside" and
+# "outside" (mirrored-page positions) don't translate to a fixed side,
+# so frames using them are left without an alignment class.
+_ALIGN_VALUES = {"left", "center", "right"}
+
+
+def _build_image_node(frame_el: ET.Element, ctx: ParseContext) -> Image:
     image_el = frame_el.find(q("draw:image"))
     href = image_el.get(q("xlink:href")) if image_el is not None else None
     linked = bool(href) and (href.startswith("http://") or href.startswith("https://"))
@@ -172,7 +179,11 @@ def _build_image_node(frame_el: ET.Element) -> Image:
     elif desc_el is not None and desc_el.text:
         alt = desc_el.text
 
-    return Image(src=href or "", alt=alt, width=width, height=height, linked=linked)
+    frame_style_name = frame_el.get(q("draw:style-name"))
+    horizontal_pos = ctx.registry.resolve_horizontal_pos(frame_style_name)
+    align = horizontal_pos if horizontal_pos in _ALIGN_VALUES else None
+
+    return Image(src=href or "", alt=alt, width=width, height=height, linked=linked, align=align)
 
 
 def _plain_text(nodes: list) -> str:
@@ -190,7 +201,7 @@ def _plain_text(nodes: list) -> str:
 def _parse_paragraph_or_image(el: ET.Element, ctx: ParseContext):
     frame = _find_solo_image_frame(el)
     if frame is not None:
-        return _build_image_node(frame)
+        return _build_image_node(frame, ctx)
 
     style_name = el.get(q("text:style-name"))
     resolved = ctx.registry.display_name(style_name) or style_name

@@ -34,7 +34,13 @@ DEFAULTS: dict[str, Any] = {
     "theme": {
         "name": "minimal",
         "directory": "themes",
+        # Site-level overrides for theme-exclusive params 
+        "params": {},
     },
+    
+    "nav": [],
+    "menu": [],    
+    "social": [],
     "blog": {
         "posts_per_page": 10,
         "excerpt_enabled": True,
@@ -68,11 +74,15 @@ DEFAULTS: dict[str, Any] = {
 }
 
 
-def _deep_merge(base: dict, override: dict) -> dict:
+def deep_merge(base: dict, override: dict) -> dict:
+    """Recursively merges `override` on top of `base`. Public (no leading
+    underscore) because it's also used by theme_config.load_theme_config
+    to merge site.yaml's `theme.params` onto theme.yaml — see there.
+    """
     result = dict(base)
     for key, value in override.items():
         if isinstance(value, dict) and isinstance(result.get(key), dict):
-            result[key] = _deep_merge(result[key], value)
+            result[key] = deep_merge(result[key], value)
         else:
             result[key] = value
     return result
@@ -130,12 +140,13 @@ class SiteConfig:
         return self.data["theme"]["name"]
 
     @property
-    def theme_dir(self) -> Path:
-        
-        project_theme = self.root / "themes" / self.theme_name        
+    def _configured_theme_dir(self) -> Path:    
+        return self.root / self.data["theme"]["directory"] / self.theme_name
 
-        if project_theme.exists():
-            return project_theme
+    @property
+    def theme_dir(self) -> Path:
+        if self._configured_theme_dir.exists():
+            return self._configured_theme_dir
 
         bundled_theme = Path(__file__).parent / "site" / "source" / "themes" / "minimal"
         return bundled_theme
@@ -143,9 +154,35 @@ class SiteConfig:
     @property
     def theme_source(self) -> str:
         """'project' ou 'bundled' — useful for diagnostics/CLI."""
+        return "project" if self._configured_theme_dir.exists() else "bundled"
 
-        project_theme = self.root / self.data["themes"]["directory"] / self.theme_name
-        return "project" if project_theme.exists() else "bundled"
+    @property
+    def nav_config(self) -> list[Any]:
+        """Raw `nav:` entries from site.yaml, consumed by nav.build_nav.
+        Lives here (not in theme.yaml) because it references page/post
+        ids, which is site data — see the note on DEFAULTS above."""
+        return self.data.get("nav", [])
+
+    @property
+    def menu_config(self) -> list[Any]:
+        """Raw `menu:` entries from site.yaml, consumed by
+        build._build_menu. Same rationale as `nav_config`."""
+        return self.data.get("menu", [])
+
+    @property
+    def social_config(self) -> list[Any]:
+        """Raw `social:` entries from site.yaml, consumed by
+        social.build_social_links."""
+        return self.data.get("social", [])
+
+    @property
+    def theme_params(self) -> dict[str, Any]:
+        """Site-level overrides for theme-exclusive params, deep-merged
+        onto theme.yaml by theme_config.load_theme_config. This is the
+        escape hatch that lets a theme keep its own private config keys
+        (colors, layout switches, ...) while still letting the site
+        author tweak them without editing the theme itself."""
+        return self.data.get("theme", {}).get("params", {})
 
     @property
     def posts_per_page(self) -> int:
@@ -160,18 +197,12 @@ class SiteConfig:
         return int(self.data["blog"]["excerpt_length"])
 
     @property
-    def default_language(self) -> str:
-        """Idioma padrão do site (sem prefixo de URL)."""
+    def default_language(self) -> str:        
         return self.data["i18n"].get("default_language") or self.language
 
     @property
     def languages(self) -> list[str]:
-        """Todos os idiomas suportados pelo site, incluindo o padrão.
-
-        O idioma padrão vem sempre primeiro. Se `i18n.languages` não for
-        configurado, o site continua se comportando como monolíngue
-        (apenas `default_language`).
-        """
+        
         default = self.default_language
         extra = [lang for lang in (self.data["i18n"].get("languages") or []) if lang != default]
         return [default, *extra]
@@ -183,12 +214,8 @@ class SiteConfig:
     @property
     def blog_index_url(self) -> str:
         """URL of the paginated blog listing ("/blog/", "/blog/page/2/",
-        ...), derived from `urls.posts` (e.g. "/blog/{slug}/" -> "/blog/"),
-        so it can never drift out of sync with individual post URLs — there
-        is only one setting (`urls.posts`) to edit for the blog's URL
-        structure. "/{slug}/" (posts at the site root) -> "/" (listing at
-        the site root too). The slash collapse guards against unusual
-        patterns where "{slug}" isn't the last path segment."""
+        ...), derived from `urls.posts` (e.g. "/blog/{slug}/" -> "/blog/")."""
+
         posts_pattern = self.data["urls"]["posts"]
         prefix = re.sub(r"/+", "/", posts_pattern.replace("{slug}", "")).strip("/")
         return f"/{prefix}/" if prefix else "/"
@@ -222,5 +249,5 @@ def load_config(config_path: Path) -> SiteConfig:
     if not isinstance(raw, dict):
         raise AsteriaError(f"The content of {config_path} must be a YAML mapping.")
 
-    merged = _deep_merge(DEFAULTS, raw)
+    merged = deep_merge(DEFAULTS, raw)
     return SiteConfig(data=merged, root=config_path.parent.resolve())

@@ -1,9 +1,3 @@
-/* Monocerus — variante "dark": a capa do livro em vez da página. Fundo
-   quase preto/carvão em todo o site (não só no cabeçalho), texto em tom
-   pergaminho, mesma família de cor fria nos links, só clareada pra
-   contraste. Importa a variante light e sobrescreve as cores. */
-@import url("light.css");
-
 :root {
   --color-bg: #17140f;
   --color-bg-raised: #201c15;

@@ -9,6 +9,7 @@ from jinja2 import Environment, FileSystemLoader, StrictUndefined, select_autoes
 from markupsafe import Markup
 
 from .config import SiteConfig
+from .nav import NavEntry
 from .urls import prefix_lang, slugify
 
 
@@ -26,11 +27,18 @@ class SiteView:
     languages: list[str] = field(default_factory=list)
     default_language: str = ""    
     blog_index_urls: dict[str, str] = field(default_factory=dict)
+   
+    menu: list[dict[str, str]] = field(default_factory=list)
+    nav: list[NavEntry] = field(default_factory=list)
+    social: list[Any] = field(default_factory=list)
 
 
 def make_site_view(
     config: SiteConfig,
     feed_url: str | None = None,
+    menu: list[dict[str, str]] | None = None,
+    nav: list[NavEntry] | None = None,
+    social: list[Any] | None = None,
 ) -> SiteView:
     return SiteView(
         title=config.title,
@@ -45,6 +53,9 @@ def make_site_view(
             lang: prefix_lang(config.blog_index_url, lang, config.default_language)
             for lang in config.languages
         },
+        menu=menu or [],
+        nav=nav or [],
+        social=social or [],
     )
 
 

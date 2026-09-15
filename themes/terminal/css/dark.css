@@ -1,8 +1,3 @@
-/* Terminal — variante "dark": o terminal escuro clássico. Importa a
-   variante light e sobrescreve só as cores — toda a estrutura/layout já
-   está definida lá. */
-@import url("light.css");
-
 :root {
   --color-bg: #0d1117;
   --color-bg-raised: #161b22;

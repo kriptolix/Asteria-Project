@@ -1,5 +1,5 @@
 __pycache__/
 *.pyc
 *.egg-info/
-boiler/
+my-site/
 .pytest_cache/

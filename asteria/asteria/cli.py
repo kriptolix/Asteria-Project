@@ -159,9 +159,9 @@ def build_parser() -> argparse.ArgumentParser:
     new_p.add_argument(
         "path",
         nargs="?",
-        default="my_site",
+        default="my-site",
         help="Directory where the project will be created (created if it does not exist). "
-        "Default: 'my_site' in the current directory.",
+        "Default: 'my-site' in the current directory.",
     )
     new_p.set_defaults(func=_cmd_new)
 

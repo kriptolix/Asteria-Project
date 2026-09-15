@@ -54,6 +54,11 @@ class StyleInfo:
     break_before: bool = False
     break_after: bool = False
     columns: ColumnInfo | None = None
+    # horizontal anchor position of a graphic/frame style (from
+    # style:graphic-properties/@style:horizontal-pos), e.g. "left",
+    # "center", "right", "from-left" - used to derive an alignment class
+    # for images (see renderer._render_image).
+    horizontal_pos: str | None = None
 
 
 CM_PER_UNIT = {"cm": 1.0, "mm": 0.1, "in": 2.54, "pt": 2.54 / 72, "px": 2.54 / 96}
@@ -108,6 +113,21 @@ class StyleRegistry:
                 return None
             if info.columns is not None:
                 return info.columns
+            current = info.parent
+        return None
+
+    def resolve_horizontal_pos(self, name: str | None) -> str | None:
+        """Follows the parent-style-name chain until it finds a graphic
+        style's horizontal anchor position (used for image alignment)."""
+        seen = set()
+        current = name
+        while current and current not in seen:
+            seen.add(current)
+            info = self.get(current)
+            if info is None:
+                return None
+            if info.horizontal_pos is not None:
+                return info.horizontal_pos
             current = info.parent
         return None
 
@@ -236,6 +256,14 @@ def _parse_style_element(style_el: ET.Element, family_override: str | None = Non
         columns = _parse_column_props(section_props)
         if columns is not None:
             info.columns = columns
+
+    # graphic-properties (used by style:style family="graphic", applied
+    # to draw:frame elements - carries the anchor/alignment of images).
+    graphic_props = style_el.find(q("style:graphic-properties"))
+    if graphic_props is not None:
+        hpos = graphic_props.get(q("style:horizontal-pos"))
+        if hpos:
+            info.horizontal_pos = hpos
 
     return info
 

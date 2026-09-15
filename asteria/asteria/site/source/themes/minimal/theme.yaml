@@ -6,20 +6,3 @@
 sidebar_toc: true
 default_variant: light
 subtitle: ""
-
-# Header menu — 'page' is the id of an odt file or the special word 'blog'.
-menu:
-  - page: "welcome"
-    title: "Start"
-
-# Hierarchical sidebar navigation. See
-# the README for the complete format (sections, automatic document title, section index page convention).
-nav: []
-
-# Social media links in the footer. Recognized platforms:
-# github, gitlab, twitter, x, mastodon, youtube,
-# instagram, facebook, discord, telegram, rss, email.
-social:
-  - platform: email
-    url: "mailto:contact@example.com"
-    label: E-mail
