@@ -10,12 +10,14 @@ HTML pages (see `asteria/raw.py`) and validates that all identifiers
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from .config import SiteConfig
 from .converter import ODTConverter
 from .document import Document, Page, Post
 from .errors import Diagnostics
 from .frontmatter import extract_frontmatter
+from .highlight import highlight_code_blocks, load_languages
 from .raw import RawPage, load_raw_page
 
 
@@ -102,6 +104,7 @@ def _load_document(
     kind: str,
     converter: ODTConverter,
     diagnostics: Diagnostics,
+    code_languages: dict[str, dict[str, Any]],
     lang: str = "",
     translation_key: str = "",
 ) -> Document:
@@ -128,6 +131,14 @@ def _load_document(
                 source=str(path),
             )
 
+    # Highlight básico de blocos <pre><code class="language-x"> (ver
+    # asteria.highlight). Roda sempre, mesmo em documentos que vieram do
+    # cache de conversão (cache.py só evita repetir a conversão ODT→HTML
+    # em si — tudo que é pós-processamento de HTML, como isto e o front
+    # matter acima, continua rodando em todo build, igual já acontecia
+    # antes desta mudança).
+    content_html = highlight_code_blocks(content_html, code_languages)
+
     # O campo `lang:` do front matter, quando presente, tem prioridade
     # sobre o idioma detectado a partir do nome do arquivo.
     final_lang = fm.lang or lang
@@ -153,6 +164,11 @@ def discover_content(
     posts: list[Post] = []
     raw_pages: list[RawPage] = []
 
+    # Definições de linguagem para o highlight (bundled + eventual
+    # source/highlight.yaml do projeto) — carregadas uma vez por build,
+    # não por documento.
+    code_languages = load_languages(config.root)
+
     page_odts, page_raw_dirs = _walk_pages(config.pages_dir, diagnostics)
     for path in page_odts:
         # Páginas seguem a mesma convenção dos posts: "sobre.odt" -> idioma
@@ -163,7 +179,7 @@ def discover_content(
         )
         pages.append(
             _load_document(
-                path, "page", converter, diagnostics,
+                path, "page", converter, diagnostics, code_languages,
                 lang=detected_lang, translation_key=translation_key,
             )
         )  # type: ignore[arg-type]
@@ -179,7 +195,7 @@ def discover_content(
         )
         posts.append(
             _load_document(
-                path, "post", converter, diagnostics,
+                path, "post", converter, diagnostics, code_languages,
                 lang=detected_lang, translation_key=translation_key,
             )
         )  # type: ignore[arg-type]

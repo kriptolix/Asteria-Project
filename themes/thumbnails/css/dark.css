@@ -1,0 +1,26 @@
+:root {
+  --color-bg: #1b1c1d;
+  --color-text: #dcdcdb;
+  --color-heading: #f2f2f1;
+  --color-muted: #8f8f8e;
+  --color-border: #333435;
+  --color-surface: #232425;
+  --color-surface-alt: #2c2d2e;
+
+  --color-accent: #57a4ad;
+  --color-accent-dark: #3f8891;
+  --color-badge: #2f4d53;
+
+  --color-tok-kw: #c9a0f5;
+  --color-tok-str: #8fd19e;
+  --color-tok-num: #e0a458;
+  --color-tok-var: #e08fc0;
+}
+
+a.tag, a.category { background: #2c2d2e; }
+
+.sidebar-search input,
+.search-page__form input { color: var(--color-text); }
+
+.social-link img { filter: brightness(0) invert(1); opacity: 0.6; }
+.social-link:hover img { opacity: 1; }

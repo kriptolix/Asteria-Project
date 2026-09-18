@@ -31,6 +31,26 @@ class SiteView:
     menu: list[dict[str, str]] = field(default_factory=list)
     nav: list[NavEntry] = field(default_factory=list)
     social: list[Any] = field(default_factory=list)
+    # Sitewide taxonomy listing (all categories/tags across every post in
+    # this language), so any template — not just taxonomy_index.html — can
+    # render a "browse by category" block (e.g. a sidebar) via
+    # `site.categories` / `site.tags`. Same rationale as menu/nav: built
+    # per language in build.py and swapped in by `_site_view_for_lang`.
+    categories: list[Any] = field(default_factory=list)
+    tags: list[Any] = field(default_factory=list)
+    # Páginas/posts com `featured: true` no front matter (ver
+    # document.Document.featured), por idioma — permite blocos tipo
+    # "pages overview" em qualquer template via `site.featured_pages` /
+    # `site.featured_posts`, sem depender do contexto de uma página
+    # específica.
+    featured_pages: list[Any] = field(default_factory=list)
+    featured_posts: list[Any] = field(default_factory=list)
+    # Every page/post in the current language, unfiltered — lets a theme
+    # build things like a "recent posts" sidebar widget from any
+    # template, not just blog.html. `posts` is newest-first; `pages`
+    # keeps discovery order. See build._LangSiteData.
+    pages: list[Any] = field(default_factory=list)
+    posts: list[Any] = field(default_factory=list)
 
 
 def make_site_view(
@@ -39,6 +59,12 @@ def make_site_view(
     menu: list[dict[str, str]] | None = None,
     nav: list[NavEntry] | None = None,
     social: list[Any] | None = None,
+    categories: list[Any] | None = None,
+    tags: list[Any] | None = None,
+    featured_pages: list[Any] | None = None,
+    featured_posts: list[Any] | None = None,
+    pages: list[Any] | None = None,
+    posts: list[Any] | None = None,
 ) -> SiteView:
     return SiteView(
         title=config.title,
@@ -56,6 +82,12 @@ def make_site_view(
         menu=menu or [],
         nav=nav or [],
         social=social or [],
+        categories=categories or [],
+        tags=tags or [],
+        featured_pages=featured_pages or [],
+        featured_posts=featured_posts or [],
+        pages=pages or [],
+        posts=posts or [],
     )
 
 
@@ -77,6 +109,7 @@ def create_environment(config: SiteConfig) -> Environment:
     env.filters["safe_content"] = lambda value: Markup(value)
     env.filters["slug"] = slugify
     env.globals["nav_branch_active"] = _nav_branch_contains
+    env.globals["menu_item_active"] = _menu_item_active
     # Fallback identity: until `apply_asset_manifest` runs (after static
     # assets are copied and fingerprinted), `asset('/css/style.css')` just
     # returns the path unchanged. Templates can call it unconditionally.
@@ -106,6 +139,16 @@ def _nav_branch_contains(entry: Any, path: str) -> bool:
             return True
 
     return False
+
+
+def _menu_item_active(item: dict, path: str) -> bool:
+    """Equivalente de `_nav_branch_contains` para `site.menu`: os itens
+    ali são dicts planos (`{title, url, page_id}`, ver
+    build._build_menu), sem filhos/aninhamento, então não precisa de
+    recursão — só compara a URL diretamente. Usado pelo global
+    `menu_item_active(item, path)` para marcar o item corrente (ex:
+    `class="active"`) num template."""
+    return item.get("url") == path
 
 
 def render_template(env: Environment, template_name: str, context: dict[str, Any]) -> str:

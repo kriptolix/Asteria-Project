@@ -1,0 +1,22 @@
+:root {
+  --color-bg: #1c1b18;
+  --color-text: #ddd8cc;
+  --color-heading: #f2f0ea;
+  --color-muted: #8a857a;
+  --color-border: #38352d;
+  --color-surface: #262420;
+
+  --color-card-bg: #100f0d;
+  --color-card-border: rgba(255, 255, 255, 0.08);
+
+  --color-tok-kw: #c9a0f5;
+  --color-tok-str: #8fd19e;
+  --color-tok-num: #e0a458;
+  --color-tok-var: #e08fc0;
+}
+
+.site-description .quote-mark { color: var(--color-border); }
+
+a.tag, a.category { background: #2a2822; }
+
+.post-list__item::after { background: var(--color-bg); }

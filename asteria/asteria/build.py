@@ -8,6 +8,7 @@ import json
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 
+from jinja2 import TemplateNotFound
 from markupsafe import Markup
 
 from .cache import CachingConverter, load_cache, save_cache
@@ -48,6 +49,29 @@ from .writer import (
     write_page,
     write_text_file,
 )
+
+
+@dataclass
+class _LangSiteData:
+    """Everything on `SiteView` that's built per language, bundled into
+    one object instead of one more loose `xxx_by_lang: dict` parameter
+    threaded through `_site_view_for_lang` every time a new sitewide
+    field is added (see `run_build`, where one `_LangSiteData` is built
+    per language up front)."""
+
+    menu: list[dict[str, str]]
+    nav: list[NavEntry]
+    categories: list[Term]
+    tags: list[Term]
+    featured_pages: list[Page]
+    featured_posts: list[Post]
+    # Every page/post in this language, unfiltered — lets a theme build
+    # things like a "recent posts" widget from any template, not just
+    # blog.html. `posts` is newest-first (same order as the blog index);
+    # `pages` keeps discovery order (pages aren't dated, so there's no
+    # natural chronological sort).
+    pages: list[Page]
+    posts: list[Post]
 
 
 @dataclass
@@ -200,30 +224,50 @@ def _build_menu(
 
 def _site_view_for_lang(
     site_view: SiteView,
-    menus_by_lang: dict[str, list[dict[str, str]]],
-    navs_by_lang: dict[str, list[NavEntry]],
+    lang_site_data: dict[str, _LangSiteData],
     lang: str,
     default_language: str,
 ) -> SiteView:
     """Returns the SiteView to use for content in `lang`: a shallow copy
-    of `site_view` with `menu` and `nav` swapped for the versions built
-    for that language (falling back to the default language's version if
-    `lang` has none of its own — e.g. a document whose language isn't
-    listed in i18n.languages). Everything else (social, title, ...) stays
-    shared, since only menu/nav are currently built per language.
+    of `site_view` with every per-language field (see `_LangSiteData`)
+    swapped for the versions built for that language (falling back to
+    the default language's version if `lang` has none of its own — e.g.
+    a document whose language isn't listed in i18n.languages).
+    Everything else (social, title, ...) stays shared, since only these
+    are currently built per language.
 
     Mirrors what `_theme_ns_for_lang` used to do before `menu`/`nav`
     moved from `theme` to `site` — see templating.SiteView.
 
-    Returns `site_view` itself, unmodified, when both already match the
-    target — avoids a pointless copy for the common case (most documents
-    are in the default language, which is what `site_view` is
-    pre-populated with)."""
-    menu = menus_by_lang.get(lang) or menus_by_lang.get(default_language, [])
-    nav = navs_by_lang.get(lang) or navs_by_lang.get(default_language, [])
-    if menu is site_view.menu and nav is site_view.nav:
+    Returns `site_view` itself, unmodified, when the target language's
+    data already matches — avoids a pointless copy for the common case
+    (most documents are in the default language, which is what
+    `site_view` is pre-populated with)."""
+    data = lang_site_data.get(lang) or lang_site_data.get(default_language)
+    if data is None:
         return site_view
-    return replace(site_view, menu=menu, nav=nav)
+    if (
+        data.menu is site_view.menu
+        and data.nav is site_view.nav
+        and data.categories is site_view.categories
+        and data.tags is site_view.tags
+        and data.featured_pages is site_view.featured_pages
+        and data.featured_posts is site_view.featured_posts
+        and data.pages is site_view.pages
+        and data.posts is site_view.posts
+    ):
+        return site_view
+    return replace(
+        site_view,
+        menu=data.menu,
+        nav=data.nav,
+        categories=data.categories,
+        tags=data.tags,
+        featured_pages=data.featured_pages,
+        featured_posts=data.featured_posts,
+        pages=data.pages,
+        posts=data.posts,
+    )
 
 
 def _breadcrumbs_for_page(config: SiteConfig, page: Page) -> list[dict[str, str]]:
@@ -269,8 +313,74 @@ def _document_context(
     }
 
 
+def _resolve_template_name(
+    env, doc: Document, default_name: str, diagnostics: Diagnostics
+) -> str:
+    """Resolve o template do tema a usar para este documento.
+
+    `template:` no front matter (ver document.Document.template)
+    substitui o padrão baseado no tipo do documento (page.html para
+    páginas, post.html para posts), permitindo que uma página ou post
+    individual use um layout diferente do tema — por exemplo, um
+    template de wiki — enquanto o restante do site continua herdando do
+    modelo padrão. Quando `template:` não é informado, o comportamento é
+    idêntico ao de hoje: sempre `default_name`.
+
+    Se o template pedido não existir no tema, registra um erro de build
+    (em vez de deixar o Jinja estourar `TemplateNotFound` no meio do
+    render) e cai de volta em `default_name`, para que o restante do
+    site continue sendo gerado normalmente.
+    """
+    name = doc.template or default_name
+    if name == default_name:
+        return name
+    try:
+        env.get_template(name)
+    except TemplateNotFound:
+        diagnostics.error(
+            f"template: '{name}' não encontrado no tema; usando o modelo "
+            f"padrão ('{default_name}').",
+            source=str(doc.source_path),
+        )
+        return default_name
+    return name
+
+
 def _feed_filename(config: SiteConfig) -> str:
     return "rss.xml" if config.data["feeds"].get("format", "rss") == "rss" else "atom.xml"
+
+
+def _search_index_filename(lang: str, default_language: str) -> str:
+    """'search-index.json' para o idioma padrão; 'pt-search-index.json'
+    para os demais — mesma convenção de _feed_filename, para não misturar
+    conteúdo de idiomas diferentes num único índice de busca."""
+    return "search-index.json" if lang == default_language else f"{lang}-search-index.json"
+
+
+def _write_search_index(
+    config: SiteConfig,
+    documents: list[Document],
+    lang: str,
+) -> None:
+    """Escreve o array JSON `[{title, url, date, excerpt}, ...]` esperado
+    pelo JS de busca client-side de temas que trazem sua própria UI de
+    busca (o Asteria não fornece essa UI/JS — só o dado). Inclui pages e
+    posts do idioma `lang`; raw pages ficam de fora porque não têm um
+    `content_html`/excerpt no mesmo formato dos documentos ODT."""
+    entries = [
+        {
+            "title": doc.title,
+            "url": doc.url,
+            "date": doc.date,
+            "excerpt": doc.excerpt,
+        }
+        for doc in documents
+    ]
+    write_text_file(
+        config.output_dir,
+        _search_index_filename(lang, config.default_language),
+        json.dumps(entries, ensure_ascii=False, indent=2) + "\n",
+    )
 
 
 def _finalize_html(html: str, live_reload_script: str | None) -> str:
@@ -368,6 +478,37 @@ def run_build(
     }
     social_links = build_social_links(config.social_config)
 
+    # Everything else that's sitewide-but-per-language is computed here,
+    # once, up front — instead of only later inside the per-language
+    # blog/taxonomy loop — so `site.categories`, `site.tags`,
+    # `site.featured_pages`, `site.featured_posts`, `site.pages` and
+    # `site.posts` are already available in EVERY template (pages, posts,
+    # blog, 404, ...), not just the ones that used to build them. The
+    # per-language taxonomy loop below reuses `categories`/`tags` from
+    # here instead of recomputing them.
+    lang_site_data: dict[str, _LangSiteData] = {}
+    for lang in config.languages:
+        lang_pages_all = [p for p in pages if p.lang == lang]
+        lang_posts_all = [p for p in posts if p.lang == lang]
+        lang_posts_sorted = sorted(lang_posts_all, key=lambda p: p.sort_key(), reverse=True)
+
+        lang_categories = collect_categories(lang_posts_all, config)
+        lang_tags = collect_tags(lang_posts_all, config)
+        if lang != config.default_language:
+            for term in [*lang_categories, *lang_tags]:
+                term.url = prefix_lang(term.url, lang, config.default_language)
+
+        lang_site_data[lang] = _LangSiteData(
+            menu=menus_by_lang[lang],
+            nav=navs_by_lang[lang],
+            categories=lang_categories,
+            tags=lang_tags,
+            featured_pages=[p for p in lang_pages_all if p.featured],
+            featured_posts=[p for p in lang_posts_all if p.featured],
+            pages=lang_pages_all,
+            posts=lang_posts_sorted,
+        )
+
     theme_ns: dict = dict(theme_config_raw)
     # `menu`/`nav`/`social` no longer live here — they're on `site_view`
     # now (see templating.SiteView). `theme_ns` only carries genuinely
@@ -375,15 +516,22 @@ def run_build(
     theme_ns.setdefault("sidebar_toc", True)
     theme_ns.setdefault("default_variant", "light")
 
-    # Default-language menu/nav; per-document/per-page renders below swap
-    # these for the right language via `_site_view_for_lang`. `social`
+    # Default-language data; per-document/per-page renders below swap
+    # this for the right language via `_site_view_for_lang`. `social`
     # isn't built per language, so it's set once here.
+    default_lang_data = lang_site_data.get(config.default_language)
     site_view = make_site_view(
         config,
         feed_url=feed_url,
-        menu=menus_by_lang.get(config.default_language, []),
-        nav=navs_by_lang.get(config.default_language, []),
+        menu=default_lang_data.menu if default_lang_data else [],
+        nav=default_lang_data.nav if default_lang_data else [],
         social=social_links,
+        categories=default_lang_data.categories if default_lang_data else [],
+        tags=default_lang_data.tags if default_lang_data else [],
+        featured_pages=default_lang_data.featured_pages if default_lang_data else [],
+        featured_posts=default_lang_data.featured_posts if default_lang_data else [],
+        pages=default_lang_data.pages if default_lang_data else [],
+        posts=default_lang_data.posts if default_lang_data else [],
     )
 
     env = create_environment(config)
@@ -428,11 +576,14 @@ def run_build(
 
     # -- pages --------------------------------------------------------------
     for page in pages:
-        page_site_view = _site_view_for_lang(site_view, menus_by_lang, navs_by_lang, page.lang, config.default_language)
+        page_site_view = _site_view_for_lang(
+            site_view, lang_site_data, page.lang, config.default_language,
+        )
         context = _document_context(
             config, page_site_view, theme_ns, page, _breadcrumbs_for_page(config, page)
         )
-        html = _finalize_html(render_template(env, "page.html", context), live_reload_script)
+        template_name = _resolve_template_name(env, page, "page.html", diagnostics)
+        html = _finalize_html(render_template(env, template_name, context), live_reload_script)
         if not dry_run:
             write_page(config.output_dir, url_to_output_path(page.url), html)
             write_document_images(
@@ -444,11 +595,14 @@ def run_build(
 
     # -- posts ------------------------------------------------------------
     for post in posts:
-        post_site_view = _site_view_for_lang(site_view, menus_by_lang, navs_by_lang, post.lang, config.default_language)
+        post_site_view = _site_view_for_lang(
+            site_view, lang_site_data, post.lang, config.default_language,
+        )
         context = _document_context(
             config, post_site_view, theme_ns, post, _breadcrumbs_for_post(config, post)
         )
-        html = _finalize_html(render_template(env, "post.html", context), live_reload_script)
+        template_name = _resolve_template_name(env, post, "post.html", diagnostics)
+        html = _finalize_html(render_template(env, template_name, context), live_reload_script)
         if not dry_run:
             write_page(config.output_dir, url_to_output_path(post.url), html)
             write_document_images(
@@ -463,9 +617,13 @@ def run_build(
     # idiomas diferentes num mesmo índice/feed/nuvem de tags.
     for lang in config.languages:
         is_default_lang = lang == config.default_language
-        lang_site_view = _site_view_for_lang(site_view, menus_by_lang, navs_by_lang, lang, config.default_language)
-        lang_posts = [p for p in posts if p.lang == lang]
-        lang_posts_desc = sorted(lang_posts, key=lambda p: p.sort_key(), reverse=True)
+        lang_data = lang_site_data[lang]
+        lang_site_view = _site_view_for_lang(
+            site_view, lang_site_data, lang, config.default_language,
+        )
+        # Já calculado (ordenado, mais recente primeiro) em lang_site_data
+        # acima — reaproveita em vez de refiltrar/reordenar posts.
+        lang_posts_desc = lang_data.posts
 
         blog_index_url = prefix_lang(config.blog_index_url, lang, config.default_language)
         blog_pages = paginate(lang_posts_desc, config.posts_per_page, blog_index_url)
@@ -504,11 +662,11 @@ def run_build(
         categories_index_url = prefix_lang(
             config.data["urls"]["categories_index"], lang, config.default_language
         )
-        lang_tags = collect_tags(lang_posts, config)
-        lang_categories = collect_categories(lang_posts, config)
-        if not is_default_lang:
-            for term in [*lang_tags, *lang_categories]:
-                term.url = prefix_lang(term.url, lang, config.default_language)
+        # Reaproveita o que já foi calculado (e com URLs já prefixadas)
+        # antes do laço de páginas/posts — ver lang_site_data acima. Evita
+        # recalcular e re-prefixar duas vezes.
+        lang_tags = lang_data.tags
+        lang_categories = lang_data.categories
 
         sitemap_entries += _write_taxonomy(
             config, env, lang_site_view, theme_ns, lang_tags,
@@ -534,6 +692,9 @@ def run_build(
                 _feed_filename(config) if is_default_lang else f"{lang}-{_feed_filename(config)}"
             )
             write_text_file(config.output_dir, feed_filename, feed_xml)
+
+        if config.search_enabled and not dry_run:
+            _write_search_index(config, [*lang_data.pages, *lang_posts_desc], lang)
 
     # -- home page, por idioma: a home pode ser uma página (identificada
     # por config.home_page) ou o índice do blog ('blog'). Para o idioma

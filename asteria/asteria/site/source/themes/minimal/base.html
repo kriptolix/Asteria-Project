@@ -8,10 +8,7 @@
     <title>{% block title %}{{ site.title }}{% endblock %}</title>
     <meta name="description" content="{% block description %}{{ site.description }}{% endblock %}">
     <link rel="canonical" href="{{ site.url }}{{ canonical_path }}">
-    <link rel="stylesheet" href="{{ asset('/css/light.css') }}">
-    {% if theme_css == 'dark' %}
-    <link rel="stylesheet" href="{{ asset('/css/dark.css') }}">
-    {% endif %}
+    <link rel="stylesheet" href="{{ asset('/css/' ~ theme_css ~ '.css') }}">
 
     <meta property="og:site_name" content="{{ site.title }}">
     <meta property="og:type" content="{{ og_type or 'website' }}">
@@ -32,11 +29,6 @@
     <link rel="alternate" hreflang="{{ translation_lang }}" href="{{ site.url }}{{ translated.url }}">
     {% endfor %}
     {% endif %}
-
-    <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png">
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png">
-    <link rel="manifest" href="/favicon/site.webmanifest">
 </head>
 <body>
     <header class="site-header">

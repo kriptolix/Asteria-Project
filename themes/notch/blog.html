@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block title %}Blog — {{ site.title }}{% endblock %}
+
+{% block content %}
+<section class="blog-index">
+    {% if posts %}
+    <ul class="post-list">
+        {% for post in posts %}
+        <li class="post-list__item">
+            <span class="pilcrow" aria-hidden="true">&para;</span>
+            <h2 class="post-list__title"><a href="{{ post.url }}">{{ post.title }}</a></h2>
+            {% if post.date %}<p class="post-list__date">&mdash; <time datetime="{{ post.date }}">{{ post.date }}</time></p>{% endif %}
+            {% if post.excerpt %}<p class="post-list__excerpt">{{ post.excerpt }}</p>{% endif %}
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p>Nenhum post publicado ainda.</p>
+    {% endif %}
+
+    {% if pagination.total_pages > 1 %}
+    <nav class="pagination">
+        {% if pagination.prev_url %}<a href="{{ pagination.prev_url }}">&laquo; Mais recentes</a>{% endif %}
+        <span class="pagination__status">Página {{ pagination.number }} / {{ pagination.total_pages }}</span>
+        {% if pagination.next_url %}<a href="{{ pagination.next_url }}">Mais antigos &raquo;</a>{% endif %}
+    </nav>
+    {% endif %}
+</section>
+{% endblock %}

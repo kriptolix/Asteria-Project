@@ -1,0 +1,23 @@
+:root {
+  --color-bg: #14151a;
+  --color-text: #eaeaea;
+  --color-accent: #7c9bff;
+  --color-muted: #9a9a9a;
+  --color-border: #26272e;
+  --color-surface: #1b1c22;
+
+  --color-sidebar-bg: #2c4b63;
+  --color-sidebar-bg-alt: #203648;
+
+  --color-tok-kw: #c9a0f5;
+  --color-tok-str: #8fd19e;
+  --color-tok-num: #e0a458;
+  --color-tok-var: #e08fc0;
+}
+
+a.tag, a.category {
+  background: #23253a;
+}
+
+.breadcrumbs a { color: var(--color-muted); }
+.post-nav { border-top-color: var(--color-border); }

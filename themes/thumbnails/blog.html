@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% import "_icons.html" as icons %}
+
+{% block title %}{{ site.title }}{% endblock %}
+
+{% block content %}
+{% if site.featured_pages %}
+<section class="pages-overview">
+    <h1>Pages overview</h1>
+    <div class="pages-overview__grid">
+        {% for item in site.featured_pages %}
+        <a class="pages-overview__item" href="{{ item.url }}">
+            <span class="pages-overview__icon">{{ icons.icon(item.icon) }}</span>
+            <span class="pages-overview__body">
+                <span class="pages-overview__title">{{ item.title }}</span>
+                {% if item.description %}<span class="pages-overview__desc">{{ item.description }}</span>{% endif %}
+            </span>
+        </a>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
+<section class="blog-index">
+    <h1>Recent articles</h1>
+
+    {% if posts %}
+    <div class="post-grid">
+        {% for post in posts %}
+        <article class="post-card">           
+            <a class="post-card__image" href="{{ post.url }}">
+                <img src="{{ post.cover if post.cover else (asset('/images/test.jpg'))}}" alt="" loading="lazy">
+            </a>            
+            <div class="post-card__body">
+                <h2 class="post-card__title"><a href="{{ post.url }}">{{ post.title }}</a></h2>
+                {% if post.date %}<time class="post-card__date" datetime="{{ post.date }}">{{ post.date }}</time>{% endif %}
+                {% if post.author or post.categories %}
+                <p class="post-card__byline">
+                    {% if post.author %}Por {{ post.author }}{% endif %}
+                    {% if post.author and post.categories %} / {% endif %}
+                    {% if post.categories %}{{ post.categories[0] }}{% endif %}
+                </p>
+                {% endif %}
+                {% if post.excerpt %}<p class="post-card__excerpt">{{ post.excerpt }}</p>{% endif %}
+                <a class="btn" href="{{ post.url }}">Ler mais {{ icons.icon('arrow-right') }}</a>
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p>Nenhum post publicado ainda.</p>
+    {% endif %}
+
+    {% if pagination.total_pages > 1 %}
+    <nav class="pagination">
+        {% if pagination.prev_url %}<a href="{{ pagination.prev_url }}">&larr; Mais recentes</a>{% endif %}
+        <span class="pagination__status">Página {{ pagination.number }} de {{ pagination.total_pages }}</span>
+        {% if pagination.next_url %}<a href="{{ pagination.next_url }}">Mais antigos &rarr;</a>{% endif %}
+    </nav>
+    {% endif %}
+</section>
+{% endblock %}

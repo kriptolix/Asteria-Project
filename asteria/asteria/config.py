@@ -65,6 +65,9 @@ DEFAULTS: dict[str, Any] = {
         "enabled": True,
         "format": "rss",  # rss | atom
     },
+    "search": {
+        "enabled": True,
+    },
     "sitemap": {
         "enabled": True,
     },
@@ -227,6 +230,16 @@ class SiteConfig:
     @property
     def feeds_enabled(self) -> bool:
         return bool(self.data["feeds"].get("enabled", True))
+
+    @property
+    def search_enabled(self) -> bool:
+        """Controla a geração de `search-index.json` (e variantes por
+        idioma, ex: `pt-search-index.json`) — um array JSON de
+        `{title, url, date, excerpt}` para cada page/post, consumido por
+        JS de busca client-side em temas que esperam esse formato. O
+        Asteria não fornece UI/JS de busca; só o índice de dados — ver
+        build._write_search_index."""
+        return bool(self.data["search"].get("enabled", True))
 
     @property
     def sitemap_enabled(self) -> bool:

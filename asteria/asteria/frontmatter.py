@@ -22,6 +22,9 @@ KNOWN_FIELDS = {
     "toc",
     "navigation",
     "lang",
+    "template",
+    "featured",
+    "cover",
 }
 
 FRONTMATTER_BLOCK_RE = re.compile(
@@ -44,9 +47,18 @@ class Frontmatter:
     description: str = ""
     slug: str | None = None
     variant: str | None = None  
+  
+    template: str | None = None
     toc: bool = True  
     navigation: bool = False  
     lang: str | None = None
+   
+    featured: bool = False
+    # Caminho (absoluto, a partir da raiz do site) de uma imagem de capa
+    # em static/, ex: "/covers/meu-post.jpg". Propositalmente NUNCA
+    # extraída do corpo do .odt — ver document.Document.cover. None
+    # quando não informado.
+    cover: str | None = None
     extra: dict[str, str] = field(default_factory=dict)
 
     def get(self, key: str, default=None):
@@ -96,9 +108,12 @@ def extract_frontmatter(
         description=raw_fields.get("description", ""),
         slug=raw_fields.get("slug"),
         variant=raw_fields.get("variant"),
+        template=raw_fields.get("template") or None,
         toc=_parse_bool(raw_fields.get("toc"), default=True),
         navigation=_parse_bool(raw_fields.get("navigation"), default=False),
         lang=raw_fields.get("lang") or None,
+        featured=_parse_bool(raw_fields.get("featured"), default=False),
+        cover=raw_fields.get("cover") or None,
         extra={k: v for k, v in raw_fields.items() if k not in KNOWN_FIELDS},
     )
 

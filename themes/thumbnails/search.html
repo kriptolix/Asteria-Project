@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block title %}Busca — {{ site.title }}{% endblock %}
+
+{% block content %}
+<section class="search-page">
+    <h1>Busca</h1>
+
+    <form class="search-page__form" role="search" action="/search/" method="get">
+        <label class="sr-only" for="search-input">Buscar</label>
+        <input type="search" name="q" id="search-input" placeholder="Digite para buscar&hellip;" autocomplete="off">
+        <button type="submit">Buscar</button>
+    </form>
+
+    <p id="search-status" class="search-page__status" role="status" aria-live="polite"></p>
+    <ul id="search-results" class="search-page__results"></ul>
+</section>
+
+<script>
+(function () {
+    
+    var INDEX_URL = "/search-index.json";
+
+    var form = document.querySelector(".search-page__form");
+    var input = document.getElementById("search-input");
+    var status = document.getElementById("search-status");
+    var results = document.getElementById("search-results");
+    var index = null;
+    var indexError = false;
+
+    function params() {
+        return new URLSearchParams(window.location.search);
+    }
+
+    function loadIndex() {
+        if (index || indexError) return Promise.resolve();
+        return fetch(INDEX_URL)
+            .then(function (res) {
+                if (!res.ok) throw new Error("not ok");
+                return res.json();
+            })
+            .then(function (data) {
+                index = Array.isArray(data) ? data : [];
+            })
+            .catch(function () {
+                indexError = true;
+            });
+    }
+
+    function renderResults(query) {
+        results.innerHTML = "";
+
+        if (indexError) {
+            status.textContent = "Índice de busca indisponível (" + INDEX_URL + " não encontrado).";
+            return;
+        }
+
+        if (!query) {
+            status.textContent = "";
+            return;
+        }
+
+        var q = query.trim().toLowerCase();
+        var matches = (index || []).filter(function (item) {
+            var haystack = ((item.title || "") + " " + (item.excerpt || "")).toLowerCase();
+            return haystack.indexOf(q) !== -1;
+        });
+
+        if (matches.length === 0) {
+            status.textContent = "Nenhum resultado para \u201c" + query + "\u201d.";
+            return;
+        }
+
+        status.textContent = matches.length + " resultado(s) para \u201c" + query + "\u201d.";
+
+        matches.forEach(function (item) {
+            var li = document.createElement("li");
+            var a = document.createElement("a");
+            a.href = item.url;
+            a.textContent = item.title;
+            li.appendChild(a);
+            if (item.date) {
+                var time = document.createElement("time");
+                time.textContent = item.date;
+                li.appendChild(time);
+            }
+            if (item.excerpt) {
+                var p = document.createElement("p");
+                p.textContent = item.excerpt;
+                li.appendChild(p);
+            }
+            results.appendChild(li);
+        });
+    }
+
+    function runSearch(query) {
+        status.textContent = "Buscando\u2026";
+        loadIndex().then(function () {
+            renderResults(query);
+        });
+    }
+
+    form.addEventListener("submit", function (e) {
+        e.preventDefault();
+        var query = input.value;
+        var url = new URL(window.location.href);
+        url.searchParams.set("q", query);
+        window.history.replaceState({}, "", url);
+        runSearch(query);
+    });
+
+    var initialQuery = params().get("q") || "";
+    input.value = initialQuery;
+    if (initialQuery) {
+        runSearch(initialQuery);
+    }
+})();
+</script>
+{% endblock %}

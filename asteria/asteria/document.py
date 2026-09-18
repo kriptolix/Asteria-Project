@@ -85,6 +85,35 @@ class Document:
         return self.frontmatter.variant
 
     @property
+    def featured(self) -> bool:
+        """`featured: true` no front matter — usado por build.run_build
+        para popular `site.featured_pages` / `site.featured_posts`."""
+        return self.frontmatter.featured
+
+    @property
+    def cover(self) -> str | None:
+        """Caminho da imagem de capa (`cover:` no front matter), ex:
+        "/covers/meu-post.jpg" — um asset em static/, não uma imagem
+        extraída do corpo do .odt (essas continuam só em `content`). None
+        quando o documento não define capa. Aceita o valor sem a barra
+        inicial no front matter (ex: `cover: covers/foo.jpg`) e
+        normaliza aqui, mesmo critério usado pelo `asset()` do tema
+        (ver templating.apply_asset_manifest)."""
+        value = self.frontmatter.cover
+        if not value:
+            return None
+        return value if value.startswith("/") else f"/{value}"
+
+    @property
+    def template(self) -> str | None:
+        """Nome do arquivo de template do tema (ex: 'wiki.html') a usar
+        na renderização deste documento, vindo de `template:` no front
+        matter. None mantém o padrão de acordo com a localização do
+        documento (page.html para páginas, post.html para posts) — ver
+        build._resolve_template_name."""
+        return self.frontmatter.template
+
+    @property
     def toc_enabled(self) -> bool:
         """Automatic table of contents (TOC) for this page. Do not confuse it with the `toc` 
         field (the already constructed tree of headings) of this same class."""
@@ -115,6 +144,24 @@ class Document:
         text = re.sub(r"\s+", " ", text).strip()
         length = self.excerpt_length
         return (text[:length] + "…") if len(text) > length else text
+
+    @property
+    def word_count(self) -> int:
+        """Approximate word count of the rendered content, HTML tags
+        stripped. Whitespace-based, so it's a rough count for CJK-style
+        scripts without spaces between words — good enough for
+        `reading_time` below, not meant for precise stats."""
+        import re
+        text = re.sub(r"<[^>]+>", " ", self.content_html)
+        return len(text.split())
+
+    @property
+    def reading_time(self) -> int:
+        """Estimated reading time in whole minutes, rounded up, assuming
+        ~200 words per minute (the same rough figure Hugo's `.ReadingTime`
+        defaults to). Always at least 1, even for very short documents."""
+        words_per_minute = 200
+        return max(1, -(-self.word_count // words_per_minute))
 
     def sort_key(self):
         return self.frontmatter.date or ""
