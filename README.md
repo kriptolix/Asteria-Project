@@ -1,6 +1,6 @@
-# Asteria
+# Asteria Project
 
-This is the Asteria monorepo. It contains:
+This is the Asteria Project monorepo. It contains:
 
 - **Asteria** — the static site generator itself.
 - **Odt2web** — the converter used by Asteria to generate HTML from ODT files.
@@ -20,7 +20,7 @@ Since DOC/DOCX is a proprietary format, and trying to keep up with it through re
 
 Well, the truth is I was planning to just create a plugin for MkDocs. But MkDocs was discontinued, and Zensical, its successor, isn't Python-based anymore.
 
-I thought about writing a plugin for some other SSGs, but the task looked harder than just creating a new SSG focused exclusively on ODT files. This way, I have total control to make the necessary adjustments for this strategy to work correctly.
+I thought about writing a plugin for some other SSGs, but the task looked harder than just creating a new SSG focused exclusively on ODT files. This way, I have total control to make the necessary adjustments for this strategy to work correctly. Furthermore, I plan to create a desktop app with a GUI in the style of Publii in the future, and I will use this CLI tool as a base.
 
 ## Is there slop here?
 
@@ -61,8 +61,8 @@ In the future, both the SSG and the conversion library will be available on [PyP
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/your-user/your-repository.git
-cd your-repository
+git clone https://github.com/kriptolix/Asteria-Project.git
+cd Asteria Project
 ```
 
 ### 2. Create a virtual environment

@@ -63,6 +63,28 @@ _RULES: dict[str, str] = {
         "  background: #f0f0f0;\n"
         "}\n"
     ),
+    "table-align": (
+        ".odt-align-center {\n"
+        "  text-align: center;\n"
+        "}\n"
+        ".odt-align-right {\n"
+        "  text-align: right;\n"
+        "}\n"
+    ),
+    "table-caption": (
+        "caption {\n"
+        "  caption-side: top;\n"
+        "  text-align: left;\n"
+        "  font-size: 0.9rem;\n"
+        "  color: #555;\n"
+        "  margin-bottom: 0.25rem;\n"
+        "}\n"
+    ),
+    "keep-with-next": (
+        ".odt-keep-with-next {\n"
+        "  break-after: avoid;\n"
+        "}\n"
+    ),
     "figure": (
         "figure {\n"
         "  margin: 1rem 0;\n"
@@ -129,14 +151,33 @@ _RULES: dict[str, str] = {
 # stable emission order, independent of insertion order in the set
 _FEATURE_ORDER = [
     "image", "figure", "blockquote", "pre", "code-block", "inline-code",
-    "list", "table", "notes", "page-break", "raw-html",
+    "list", "table", "table-align", "table-caption", "keep-with-next",
+    "notes", "page-break", "raw-html",
 ]
+
+# Flow rules for multi-column sections. Vertical spacing is expressed only
+# as margin-bottom: a margin-top is not truncated at the very start of the
+# container, so a column that starts with a heading would begin lower than
+# the columns that start with plain text. Extra space before a heading is
+# given to the preceding block instead.
+_COLUMNS_FLOW = (
+    ".odt-columns > * {\n"
+    "  margin-block: 0 1rem;\n"
+    "}\n"
+    ".odt-columns > p {\n"
+    "  orphans: 2;\n"
+    "  widows: 2;\n"
+    "}\n"
+    ".odt-columns > :has(+ :is(h1, h2, h3, h4, h5, h6)) {\n"
+    "  margin-block-end: 2rem;\n"
+    "}\n"
+)
 
 
 def _columns_css(ctx: RenderContext) -> str:
     if not ctx.columns:
         return ""
-    parts = []
+    parts = [_COLUMNS_FLOW]
     for count in sorted(ctx.columns):
         gap, rule = ctx.columns[count]
         gap = gap or "2rem"

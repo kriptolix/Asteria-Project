@@ -6,9 +6,9 @@
 
 {% block sidebar %}
 {{ super() }}
-{% if show_toc and page.toc %}
+{% if show_toc and page.toc and not show_navigation %}
 <aside class="sidebar-toc">
-    <h2>Nesta página</h2>
+    <h2>{{ t("in_this_page", page.lang) }}</h2>
     {{ toc.render_toc(page.toc) }}
 </aside>
 {% endif %}

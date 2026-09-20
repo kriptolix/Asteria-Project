@@ -59,6 +59,13 @@ class StyleInfo:
     # "center", "right", "from-left" - used to derive an alignment class
     # for images (see renderer._render_image).
     horizontal_pos: str | None = None
+    # "fo:keep-with-next" of a paragraph style: True ("always"), False
+    # ("auto", an explicit opt-out that overrides an inherited "always")
+    # or None when this style level does not say anything about it.
+    keep_with_next: bool | None = None
+    # width of a table column (style:table-column-properties/
+    # @style:column-width), already converted to centimeters.
+    column_width_cm: float | None = None
 
 
 CM_PER_UNIT = {"cm": 1.0, "mm": 0.1, "in": 2.54, "pt": 2.54 / 72, "px": 2.54 / 96}
@@ -70,6 +77,28 @@ def _to_css_length(value: str | None) -> str | None:
     if not value:
         return None
     return value
+
+
+_LENGTH_RE = re.compile(r"^\s*([0-9]*\.?[0-9]+)\s*([a-z%]*)\s*$")
+
+
+def length_to_cm(value: str | None) -> float | None:
+    """Converts a CSS/ODF length such as '8.5cm' or '120px' into
+    centimeters. Meant for classification and relative comparisons only.
+    Returns None for empty, malformed or relative (%, em...) values."""
+    if not value:
+        return None
+    match = _LENGTH_RE.match(value)
+    if not match:
+        return None
+    number, unit = match.groups()
+    factor = CM_PER_UNIT.get(unit or "cm")
+    if factor is None:
+        return None
+    try:
+        return float(number) * factor
+    except ValueError:
+        return None
 
 
 _ODF_ESCAPE_RE = re.compile(r"_([0-9A-Fa-f]{2})_")
@@ -147,6 +176,39 @@ class StyleRegistry:
                 return True
             current = info.parent
         return False
+
+    def resolve_keep_with_next(self, name: str | None) -> bool | None:
+        """Follows the parent-style-name chain until it finds a style that
+        explicitly sets "keep with next". The closest definition wins, so
+        a child style with "auto" overrides an ancestor's "always".
+        Returns None when nothing in the chain says anything about it."""
+        seen = set()
+        current = name
+        while current and current not in seen:
+            seen.add(current)
+            info = self.get(current)
+            if info is None:
+                return None
+            if info.keep_with_next is not None:
+                return info.keep_with_next
+            current = info.parent
+        return None
+
+    def resolve_text_align(self, name: str | None) -> str | None:
+        """Follows the parent-style-name chain until it finds an explicit
+        paragraph text alignment (raw ODF value: start, end, left, right,
+        center, justify)."""
+        seen = set()
+        current = name
+        while current and current not in seen:
+            seen.add(current)
+            info = self.get(current)
+            if info is None:
+                return None
+            if info.text_align is not None:
+                return info.text_align
+            current = info.parent
+        return None
 
     def display_name(self, name: str | None) -> str | None:
         if name is None:
@@ -226,6 +288,11 @@ def _parse_style_element(style_el: ET.Element, family_override: str | None = Non
             info.break_before = True
         if para_props.get(q("fo:break-after")) == "page":
             info.break_after = True
+        keep_with_next = para_props.get(q("fo:keep-with-next"))
+        if keep_with_next == "always":
+            info.keep_with_next = True
+        elif keep_with_next == "auto":
+            info.keep_with_next = False
 
     text_props = style_el.find(q("style:text-properties"))
     if text_props is not None:
@@ -264,6 +331,12 @@ def _parse_style_element(style_el: ET.Element, family_override: str | None = Non
         hpos = graphic_props.get(q("style:horizontal-pos"))
         if hpos:
             info.horizontal_pos = hpos
+
+    # table-column-properties (used by style:style family="table-column",
+    # applied to table:table-column elements).
+    column_props = style_el.find(q("style:table-column-properties"))
+    if column_props is not None:
+        info.column_width_cm = length_to_cm(column_props.get(q("style:column-width")))
 
     return info
 

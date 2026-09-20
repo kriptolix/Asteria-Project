@@ -5,7 +5,7 @@ Build pipeline orchestration
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field, fields, replace
 from pathlib import Path
 
 from jinja2 import TemplateNotFound
@@ -15,7 +15,7 @@ from .cache import CachingConverter, load_cache, save_cache
 from .config import SiteConfig, load_config
 from .converter import get_converter
 from .discovery import discover_content
-from .document import Document, Page, Post
+from .document import Document, Page, Post, TocEntry
 from .errors import AsteriaError, Diagnostics
 from .feed import render_atom, render_rss
 from .nav import NavEntry, build_nav
@@ -72,6 +72,15 @@ class _LangSiteData:
     # natural chronological sort).
     pages: list[Page]
     posts: list[Post]
+    # {document.url: document.toc} for every page/post in this language
+    # that has a non-empty TOC and hasn't opted out via `toc: false`
+    # (see Document.toc_enabled). Lets a theme graft any page's TOC onto
+    # its own nav entry — not just the current page's — from `site.nav`
+    # alone, without the template needing to cross-reference `site.pages`
+    # /`site.posts` by URL itself. Entries with no heading, or with
+    # `toc_enabled` off, are left out entirely rather than mapped to an
+    # empty list, so a theme can test `site.tocs.get(entry.url)` directly.
+    tocs: dict[str, list[TocEntry]]
 
 
 @dataclass
@@ -286,28 +295,18 @@ def _site_view_for_lang(
     data = lang_site_data.get(lang) or lang_site_data.get(default_language)
     if data is None:
         return site_view
-    if (
-        data.menu is site_view.menu
-        and data.nav is site_view.nav
-        and data.categories is site_view.categories
-        and data.tags is site_view.tags
-        and data.featured_pages is site_view.featured_pages
-        and data.featured_posts is site_view.featured_posts
-        and data.pages is site_view.pages
-        and data.posts is site_view.posts
-    ):
+    # Every field on _LangSiteData is swapped onto the SiteView field of
+    # the same name. Driven off dataclasses.fields() instead of a
+    # hand-written list of comparisons/assignments, so adding one more
+    # per-language `site.*` value only means adding a field to
+    # _LangSiteData (and to SiteView, and to wherever _LangSiteData gets
+    # built) — not also updating this function to match, which is easy
+    # to forget and would otherwise silently leave the new field stuck
+    # on whatever `site_view` happened to be pre-populated with.
+    updates = {f.name: getattr(data, f.name) for f in fields(_LangSiteData)}
+    if all(getattr(site_view, name) is value for name, value in updates.items()):
         return site_view
-    return replace(
-        site_view,
-        menu=data.menu,
-        nav=data.nav,
-        categories=data.categories,
-        tags=data.tags,
-        featured_pages=data.featured_pages,
-        featured_posts=data.featured_posts,
-        pages=data.pages,
-        posts=data.posts,
-    )
+    return replace(site_view, **updates)
 
 
 def _breadcrumbs_for_page(config: SiteConfig, page: Page) -> list[dict[str, str]]:
@@ -572,6 +571,17 @@ def run_build(
             featured_posts=[p for p in lang_posts_all if p.featured],
             pages=lang_pages_all,
             posts=lang_posts_sorted,
+            # See _LangSiteData.tocs. `toc_enabled` (`toc: false` in
+            # front matter) and an empty toc (no headings at all) are
+            # both reasons to leave a document out of the map entirely,
+            # rather than map it to `[]` — lets a theme just test
+            # `site.tocs.get(entry.url)` without also having to check
+            # both of those separately.
+            tocs={
+                doc.url: doc.toc
+                for doc in [*lang_pages_all, *lang_posts_all]
+                if doc.toc_enabled and doc.toc
+            },
         )
 
     theme_ns: dict = dict(theme_config_raw)
@@ -597,6 +607,7 @@ def run_build(
         featured_posts=default_lang_data.featured_posts if default_lang_data else [],
         pages=default_lang_data.pages if default_lang_data else [],
         posts=default_lang_data.posts if default_lang_data else [],
+        tocs=default_lang_data.tocs if default_lang_data else {},
     )
 
     env = create_environment(config)

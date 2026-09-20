@@ -66,6 +66,10 @@ class Paragraph:
     style_candidates: list[str] = field(default_factory=list)
     # resolved semantic style (e.g. "Text Body", "Quotation")
     resolved_style: Optional[str] = None
+    # the author asked (via the ODT style) for this paragraph to stay on
+    # the same page/column as the next block; surfaced by the renderer as
+    # a class so SSG-side CSS decides how to honor it.
+    keep_with_next: bool = False
 
 
 @dataclass
@@ -74,6 +78,9 @@ class Heading:
     children: list[InlineNode] = field(default_factory=list)
     style_name: Optional[str] = None
     style_candidates: list[str] = field(default_factory=list)
+    # same meaning as Paragraph.keep_with_next; headings default to True
+    # unless the ODT style explicitly opts out.
+    keep_with_next: bool = False
 
 
 @dataclass
@@ -95,6 +102,9 @@ class TableCell:
     rowspan: int = 1
     is_header: bool = False
     covered: bool = False  # cell covered by a preceding rowspan/colspan
+    # explicit horizontal alignment authored in the cell's first paragraph
+    # ("center" | "right"); None when left/start/justify or not set.
+    align: Optional[str] = None
 
 
 @dataclass
@@ -108,7 +118,7 @@ class Table:
     rows: list[TableRow] = field(default_factory=list)
     style_name: Optional[str] = None
     caption: Optional[str] = None
-    column_widths: list[Optional[float]] = field(default_factory=list)  # cm
+    column_widths: list[Optional[float]] = field(default_factory=list)  # cm; None = unknown
 
 
 @dataclass

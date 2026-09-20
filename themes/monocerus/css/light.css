@@ -45,6 +45,16 @@ body {
   text-align: justify;
 }
 
+body {
+    min-height: 100%;
+}
+
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
 h1,
 h2,
 h3,
@@ -252,7 +262,7 @@ a:hover {
   padding: 2rem 1.25rem;
   font-size: 0.8rem;
   border-top: 1px solid var(--color-border);
-  
+  margin-top: auto;
 }
 
 .footer-elements {
@@ -594,3 +604,30 @@ th {
     text-decoration: underline;
   }
 }
+
+/* 1. Column count and collapse: the SSG decides where columns make sense */
+@media (min-width: 48rem) {
+  .odt-columns-2 { column-count: 2; column-gap: 2rem; }
+  .odt-columns-3 { column-count: 3; column-gap: 2rem; }
+}
+
+/* 2. Vertical spacing: only margin-bottom inside columns */
+.odt-columns > * { margin-block: 0 1rem; }
+.odt-columns > :has(+ :is(h1, h2, h3, h4, h5, h6)) { margin-block-end: 2rem; }
+
+/* 3. Orphan headings (harmless outside columns, also helps in print) */
+.odt-keep-with-next { break-after: avoid; }
+
+/* 4. Widows/orphans of ordinary text */
+.odt-columns > p { orphans: 2; widows: 2; }
+
+.odt-image { max-width: 100%; }
+figure.odt-image img { max-width: 100%; height: auto; }
+img.odt-image { height: auto; }
+
+.odt-image-small  { max-width: min(100%, 12rem); }
+.odt-image-medium { max-width: min(100%, 24rem); }
+.odt-image-large  { max-width: 100%; }
+
+.odt-image-align-center { display: block; margin-inline: auto; }
+.odt-image-align-right  { display: block; margin-inline-start: auto; }

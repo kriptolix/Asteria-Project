@@ -53,6 +53,12 @@ class SiteView:
     # keeps discovery order. See build._LangSiteData.
     pages: list[Any] = field(default_factory=list)
     posts: list[Any] = field(default_factory=list)
+    # {document.url: document.toc} for every page/post in the current
+    # language with a TOC to show — see build._LangSiteData.tocs. Lets a
+    # theme graft any page's own TOC onto its `site.nav` entry (e.g. a
+    # MkDocs-style "expand to show headings" nav), not just the current
+    # page's.
+    tocs: dict[str, Any] = field(default_factory=dict)
 
 
 def make_site_view(
@@ -67,6 +73,7 @@ def make_site_view(
     featured_posts: list[Any] | None = None,
     pages: list[Any] | None = None,
     posts: list[Any] | None = None,
+    tocs: dict[str, Any] | None = None,
 ) -> SiteView:
     return SiteView(
         title=config.title,
@@ -90,6 +97,7 @@ def make_site_view(
         featured_posts=featured_posts or [],
         pages=pages or [],
         posts=posts or [],
+        tocs=tocs or {},
     )
 
 

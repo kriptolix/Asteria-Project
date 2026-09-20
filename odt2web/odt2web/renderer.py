@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass, field
 from typing import Callable
 
@@ -12,7 +11,8 @@ from .model import (
     NoteRef, PageBreak, Paragraph, RawHtml, Section, Span, Table, Text,
 )
 from .security import escape_attr, escape_text, sanitize_url
-from .styles import resolve_style_mapping
+from .styles import length_to_cm, resolve_style_mapping
+from .tables import analyze_table
 
 CustomRenderer = Callable[[CustomNode, "RenderContext"], str]
 
@@ -34,6 +34,16 @@ def _render_attrs(attrs: dict) -> str:
     for key, value in attrs.items():
         parts.append(f'{key}="{escape_attr(str(value))}"')
     return " " + " ".join(parts)
+
+
+def _merge_class(attrs: dict, *extra: str) -> dict:
+    """Returns a copy of attrs with the extra classes appended to any
+    class already coming from the style map."""
+    merged = dict(attrs)
+    classes = " ".join(filter(None, [merged.get("class"), *extra]))
+    if classes:
+        merged["class"] = classes
+    return merged
 
 
 # ---------------------------------------------------------------------------
@@ -142,6 +152,11 @@ def _render_paragraph(node: Paragraph, ctx: RenderContext) -> str:
         ctx.features.add("blockquote")
     if tag == "pre":
         ctx.features.add("pre")
+    if node.keep_with_next:
+        # the author asked for this block to stay with the next one; we
+        # only surface that as a class and let CSS decide how to honor it.
+        ctx.features.add("keep-with-next")
+        attrs = _merge_class(attrs, "odt-keep-with-next")
     inner = render_inline(node.children, ctx)
     return f"<{tag}{_render_attrs(attrs)}>{inner}</{tag}>\n"
 
@@ -149,14 +164,14 @@ def _render_paragraph(node: Paragraph, ctx: RenderContext) -> str:
 def _render_heading(node: Heading, ctx: RenderContext) -> str:
     mapping = resolve_style_mapping(node.style_candidates, ctx.style_map)
     if mapping is not None:
+        # an explicit mapping is honored even when it does not point to a
+        # heading tag (section 7).
         tag, attrs = mapping
-        if not (len(tag) == 2 and tag[0] == "h" and tag[1].isdigit()):
-            # a custom mapping that does not point to a heading tag; we
-            # still honor the user's explicit choice (section 7).
-            inner = render_inline(node.children, ctx)
-            return f"<{tag}{_render_attrs(attrs)}>{inner}</{tag}>\n"
     else:
         tag, attrs = f"h{min(node.level + 1, 6)}", {}
+    if node.keep_with_next:
+        ctx.features.add("keep-with-next")
+        attrs = _merge_class(attrs, "odt-keep-with-next")
     inner = render_inline(node.children, ctx)
     return f"<{tag}{_render_attrs(attrs)}>{inner}</{tag}>\n"
 
@@ -174,7 +189,19 @@ def _render_list(node: List, ctx: RenderContext) -> str:
 
 
 def _render_table(node: Table, ctx: RenderContext) -> str:
+    """Renders a table plus a few structural hints for the SSG (not the
+    original look): simple/complex grid, size, header rows, relative
+    column shares and explicit cell alignment."""
     ctx.features.add("table")
+    hints = analyze_table(node)
+    table_attrs = {
+        "class": "odt-table " + ("odt-table-simple" if hints.simple else "odt-table-complex"),
+        "data-cols": hints.cols,
+        "data-rows": hints.rows,
+    }
+    if hints.header_rows:
+        table_attrs["data-header-rows"] = hints.header_rows
+
     header_rows = [r for r in node.rows if r.is_header]
     body_rows = [r for r in node.rows if not r.is_header]
 
@@ -185,15 +212,26 @@ def _render_table(node: Table, ctx: RenderContext) -> str:
                 continue
             cell_tag = "th" if cell.is_header else "td"
             attrs = {}
+            if cell.is_header:
+                attrs["scope"] = "col"
             if cell.colspan > 1:
                 attrs["colspan"] = cell.colspan
             if cell.rowspan > 1:
                 attrs["rowspan"] = cell.rowspan
+            if cell.align:
+                ctx.features.add("table-align")
+                attrs["class"] = f"odt-align-{cell.align}"
             inner = "".join(render_block(c, ctx) for c in cell.children)
             cells_html.append(f"<{cell_tag}{_render_attrs(attrs)}>{inner}</{cell_tag}>")
         return f"<tr>{''.join(cells_html)}</tr>\n"
 
-    parts = ["<table>\n"]
+    parts = [f"<table{_render_attrs(table_attrs)}>\n"]
+    if node.caption:
+        ctx.features.add("table-caption")
+        parts.append(f"<caption>{escape_text(node.caption)}</caption>\n")
+    if hints.col_shares:
+        cols = "".join(f'<col data-share="{share}">' for share in hints.col_shares)
+        parts.append(f"<colgroup>{cols}</colgroup>\n")
     if header_rows:
         parts.append("<thead>\n")
         parts.extend(render_row(r) for r in header_rows)
@@ -211,31 +249,8 @@ def _render_table(node: Table, ctx: RenderContext) -> str:
 # without hard-coding the document's original print dimensions.
 _IMAGE_SIZE_THRESHOLDS_CM = (("small", 6.0), ("medium", 12.0))  # else "large"
 
-_CM_PER_UNIT = {"cm": 1.0, "mm": 0.1, "in": 2.54, "pt": 2.54 / 72, "px": 2.54 / 96}
-_LENGTH_RE = re.compile(r"^\s*([0-9]*\.?[0-9]+)\s*([a-z%]*)\s*$")
-
-
-def _length_to_cm(value: str | None) -> float | None:
-    """Converts a CSS length such as '8.5cm' or '120px' into centimeters,
-    for classification purposes only (the original string is still used
-    verbatim wherever exact dimensions are rendered)."""
-    if not value:
-        return None
-    match = _LENGTH_RE.match(value)
-    if not match:
-        return None
-    number, unit = match.groups()
-    factor = _CM_PER_UNIT.get(unit or "cm")
-    if factor is None:  # unknown/relative unit (%, em...) - can't classify
-        return None
-    try:
-        return float(number) * factor
-    except ValueError:
-        return None
-
-
 def _image_size_class(node: Image) -> str | None:
-    size_cm = _length_to_cm(node.width) or _length_to_cm(node.height)
+    size_cm = length_to_cm(node.width) or length_to_cm(node.height)
     if size_cm is None:
         return None
     for label, threshold in _IMAGE_SIZE_THRESHOLDS_CM:
@@ -245,8 +260,8 @@ def _image_size_class(node: Image) -> str | None:
 
 
 def _image_orientation_class(node: Image) -> str | None:
-    width_cm = _length_to_cm(node.width)
-    height_cm = _length_to_cm(node.height)
+    width_cm = length_to_cm(node.width)
+    height_cm = length_to_cm(node.height)
     if width_cm is None or height_cm is None:
         return None
     if abs(width_cm - height_cm) < 0.05:
@@ -274,12 +289,10 @@ def _render_image(node: Image, ctx: RenderContext) -> str:
     else:
         src = escape_attr(node.src)
 
-    style_parts = []
-    if node.width:
-        style_parts.append(f"width:{node.width}")
-    if node.height:
-        style_parts.append(f"height:{node.height}")
-    style_attr = f' style="{"; ".join(style_parts)}"' if style_parts else ""
+    # no inline width/height: the source dimensions are only reflected as
+    # coarse classes (size, orientation, alignment), so the SSG's CSS
+    # decides the real layout (an inline height would also fight the
+    # generated "max-width: 100%; height: auto" rule on narrow screens).
     alt = escape_attr(node.alt or "")
     classes = _image_classes(node)
 
@@ -287,7 +300,7 @@ def _render_image(node: Image, ctx: RenderContext) -> str:
         # classes go on the <figure> (not the <img>), since alignment and
         # sizing are block-level concerns once there's a caption below it.
         ctx.features.add("figure")
-        img_tag = f'<img src="{src}" alt="{alt}"{style_attr}>'
+        img_tag = f'<img src="{src}" alt="{alt}">'
         figure_class = escape_attr(" ".join(classes))
         return (
             f'<figure class="{figure_class}">{img_tag}'
@@ -295,7 +308,7 @@ def _render_image(node: Image, ctx: RenderContext) -> str:
         )
 
     img_class = escape_attr(" ".join(classes))
-    return f'<img src="{src}" alt="{alt}" class="{img_class}"{style_attr}>\n'
+    return f'<img src="{src}" alt="{alt}" class="{img_class}">\n'
 
 
 def _render_page_break(node: PageBreak, ctx: RenderContext) -> str:

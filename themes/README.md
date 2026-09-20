@@ -1,1 +1,1 @@
-Other themes I'm working in, pretty much broken now.
+Themes I am working on involving proof-of-concept resources, pretty much broken now.
