@@ -49,6 +49,10 @@ DEFAULTS: dict[str, Any] = {
     "i18n": {       
         "languages": [],       
         "default_language": "",
+        # Site-level override/extension for the theme's own i18n.yaml
+        # (UI string translations) — see i18n_strings.load_theme_i18n.
+        # Same escape hatch as theme.params for theme.yaml.
+        "strings": {},
     },
     "assets": {       
         "fingerprint": True,
@@ -209,6 +213,13 @@ class SiteConfig:
         default = self.default_language
         extra = [lang for lang in (self.data["i18n"].get("languages") or []) if lang != default]
         return [default, *extra]
+
+    @property
+    def i18n_string_overrides(self) -> dict[str, Any]:
+        """Site-level override/extension for the theme's UI string
+        translations (`i18n.yaml` inside the theme directory) — see
+        i18n_strings.load_theme_i18n."""
+        return self.data["i18n"].get("strings") or {}
 
     @property
     def fingerprint_assets_enabled(self) -> bool:

@@ -136,6 +136,42 @@ def _assign_prev_next(posts: list[Post]) -> None:
             post.next = ordered[i + 1] if i < len(ordered) - 1 else None
 
 
+def _resolve_page_reference(
+    ref: str,
+    pages_by_id: dict[str, Page],
+    pages_by_translation_key: dict[str, dict[str, Page]],
+    lang: str,
+    default_language: str,
+) -> Page | None:
+    """Resolves a page reference string (as used by `menu: - page: ...`
+    and `home_page:` in site.yaml) to a `Page`.
+
+    `translation_key` is checked FIRST, exact id second: a translated
+    page's translation_key (e.g. "about") is usually identical to the
+    untranslated/default page's own id, so checking id first would always
+    match the default-language page and never reach the translation
+    group. A dotted id used to pin one specific translation (e.g.
+    "about.pt") is never itself a valid translation_key, so this order
+    never breaks that escape hatch. Same rationale as `nav._resolve_target`
+    and `references.resolve_references`'s `_resolve_target`.
+
+    Shared by `_build_menu` and the home-page lookup in `run_build`, so
+    both interpret a page reference the same way. Previously the
+    home-page lookup only matched an exact document id, so a value that
+    worked fine as a menu `page:` reference could silently fail to
+    resolve here, or resolve to a different language's page than the one
+    a `page:` entry with the same value would pick.
+    """
+    translations = pages_by_translation_key.get(ref)
+    if translations:
+        return (
+            translations.get(lang)
+            or translations.get(default_language)
+            or next(iter(translations.values()))
+        )
+    return pages_by_id.get(ref)
+
+
 def _build_menu(
     menu_config: list[dict],
     config: SiteConfig,
@@ -167,29 +203,20 @@ def _build_menu(
     for entry in menu_config:
         page_id = entry.get("page")
         referenced_ids.add(page_id)
-        title = entry.get("title", page_id)
+        title_override = entry.get("title")
 
         if page_id in blog_keys:
             url = prefix_lang(config.blog_index_url, lang, config.default_language)
+            # No page object to fall back to for a title here — same
+            # default used by the auto-injected "Blog" entry below.
+            title = title_override or "Blog"
         else:
-            # translation_key is checked FIRST, exact id second — not the
-            # other way around. A translated page's translation_key (e.g.
-            # "sobre") is usually identical to the untranslated/default
-            # document's own id, so checking id first would always match
-            # the default-language page and never reach the translation
-            # group. A dotted id used to pin one specific translation
-            # (e.g. "sobre.pt") is never itself a valid translation_key,
-            # so this order never breaks that escape hatch.
-            page = None
-            translations = pages_by_translation_key.get(page_id)
-            if translations:
-                page = (
-                    translations.get(lang)
-                    or translations.get(config.default_language)
-                    or next(iter(translations.values()))
-                )
-            if page is None:
-                page = pages_by_id.get(page_id)
+            # translation_key is checked FIRST, exact id second — see
+            # _resolve_page_reference for the full rationale.
+            page = _resolve_page_reference(
+                page_id, pages_by_id, pages_by_translation_key,
+                lang, config.default_language,
+            )
             if page is None:
                 diagnostics.warning(
                     f"menu: page '{page_id}' not found (checked both as an "
@@ -199,8 +226,21 @@ def _build_menu(
                     source="site.yaml",
                 )
                 url = "#"
+                # No resolved page to pull a title from — last-resort
+                # fallback to the raw reference string, same as before
+                # this fix.
+                title = title_override or page_id
             else:
                 url = page.url
+                # Falls back to the resolved page's own title — which is
+                # already the right language's title, since `page` above
+                # was resolved for this specific `lang` — instead of the
+                # raw `page:` string. Mirrors nav._resolve's
+                # `title_override or target.title`, so a menu entry left
+                # without an explicit `title:` shows real text (and the
+                # correct per-language text) instead of the internal
+                # page/translation_key identifier.
+                title = title_override or page.title
         menu_items.append({"title": title, "url": url, "page_id": page_id})
 
     # If there are posts, the blog is not the home page, and the user has not
@@ -456,6 +496,31 @@ def run_build(
     # content-agnostic settings like colors or layout toggles) — see
     # theme_config.load_theme_config.
     theme_config_raw = load_theme_config(config.theme_dir, config.theme_params)
+
+    # Soft guardrail: `home_page:` and `menu:` are declared independently
+    # in site.yaml, so nothing enforces they stay in sync — e.g. a
+    # `home_page:` value that's a leftover from a page that got renamed,
+    # or was simply never added to the menu, may go unnoticed since the
+    # site still builds and "/" still renders something. This doesn't
+    # block the build: not listing the home page in the menu is a
+    # legitimate, common choice (e.g. a logo/site title links to "/"
+    # instead of a menu entry) — it's just flagged in case it wasn't
+    # intentional. "blog" is exempt: when it's the home page, _build_menu
+    # already treats that as a reason NOT to add a separate "Blog" menu
+    # entry (the blog index is already reachable at "/"), so warning
+    # about its absence from the menu here would be noisy, not helpful.
+    if config.home_page != "blog":
+        menu_page_refs = {entry.get("page") for entry in config.menu_config}
+        if config.home_page not in menu_page_refs:
+            diagnostics.warning(
+                f"home_page: '{config.home_page}' is not referenced by any "
+                "menu item (menu: - page: ...) in site.yaml. This may be "
+                "intentional (e.g. the home page is reached via a logo or "
+                "site title instead of a menu entry) — if it isn't, add a "
+                "matching 'page:' entry to menu: to keep them in sync.",
+                source="site.yaml",
+            )
+
     menus_by_lang: dict[str, list[dict[str, str]]] = {
         lang: _build_menu(
             config.menu_config, config, pages_by_id,
@@ -703,12 +768,19 @@ def run_build(
     # correspondente — se ela existir. ---------------------------------
     is_blog_home = config.home_page == "blog"
 
-    # Todas as versões (por idioma) da página escolhida como home,
-    # indexadas pelo próprio idioma — vazio se a home for o blog, ou se
-    # a página referenciada em `home_page:` não existir.
+    # All versions (per language) of the page chosen as home, indexed by
+    # language — empty if home is the blog index, or if `home_page:`
+    # doesn't resolve to anything (see _resolve_page_reference).
     home_pages_by_lang: dict[str, Page] = {}
     if not is_blog_home:
-        home_page_default = pages_by_id.get(config.home_page)
+        # Pivoted on the default language: this both matches how a
+        # `page:` menu entry with the same value would resolve for a
+        # visitor on the default language, and gives us a Page whose
+        # own `.translations` dict already covers every other language.
+        home_page_default = _resolve_page_reference(
+            config.home_page, pages_by_id, pages_by_translation_key,
+            lang=config.default_language, default_language=config.default_language,
+        )
         if home_page_default is not None:
             home_pages_by_lang[home_page_default.lang] = home_page_default
             home_pages_by_lang.update(home_page_default.translations)

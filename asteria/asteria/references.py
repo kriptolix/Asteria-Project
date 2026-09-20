@@ -90,6 +90,21 @@ def resolve_references(
             suffix = f"|{label}" if label else ""
             return f"[[{ref_id}{suffix}]]"
 
+        if ref_id.lower() == MORE_MARKER:
+            # [[more]] is a reserved marker, not a cross-reference — it's
+            # handled later, per-post, by split_at_more_marker() to build
+            # the excerpt/preview split. REFERENCE_RE matches it too
+            # (any [[...]] with an alphanumeric id), so without this
+            # check it would be treated as a broken reference to a
+            # nonexistent document with id "more": resolve_references_for_all()
+            # runs before split_at_more_marker() in run_build(), so the
+            # marker would already be replaced with a
+            # `broken-reference` span (and, since target-not-found is a
+            # diagnostics ERROR, would abort the whole build) before
+            # split_at_more_marker ever got a chance to see it. Left
+            # untouched here, it survives verbatim to that later step.
+            return match.group(0)
+
         target = _resolve_target(ref_id)
 
         if target is None:

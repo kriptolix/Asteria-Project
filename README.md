@@ -2,7 +2,7 @@
 
 This is the Asteria monorepo. It contains:
 
-- **Asteria SSG** — the static site generator itself.
+- **Asteria** — the static site generator itself.
 - **Odt2web** — the converter used by Asteria to generate HTML from ODT files.
 - **Themes** — some themes to use with Asteria.
 
@@ -24,9 +24,9 @@ I thought about writing a plugin for some other SSGs, but the task looked harder
 
 ## Is there slop here?
 
-Yes, a little.
+Yes, a good chunk.
 
-Most of the work on odt2web was done with Claude's assistance. Some other minor parts, such as TOC generation, were also made with its help.
+Most of the work on odt2web was done with Claude's assistance. Some other parts, such as TOC and Nav generation, were also made with its help.
 
 ## Can I open issues/PRs using slop?
 
@@ -49,3 +49,49 @@ It's very easy to tell when someone doesn't understand what they're doing with c
 ## But I don't like Slop...
 
 No problem, just don't use the monorepo's content. Believe it or not, you aren't forced to. You can hate Slop all you want, as long as you don't come and hassle me about it. Asteria is a personal project for personal use. If you like it, you are welcome to use it too, but I will steer it in the direction I see fit.
+
+## Current status
+
+All components are in use. There are still some adjustments and minor bugs to fix, but all core features are already functional.
+
+## How to install
+
+In the future, both the SSG and the conversion library will be available on [PyPI](https://pypi.org/). However, since the project is currently under development, installation is still manual.
+
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/your-user/your-repository.git
+cd your-repository
+```
+
+### 2. Create a virtual environment
+
+```bash
+python -m venv .venv
+```
+
+Activate the virtual environment:
+
+**Linux / macOS:**
+
+```bash
+source .venv/bin/activate
+```
+
+**Windows:**
+
+```powershell
+.venv\Scripts\Activate.ps1
+```
+
+### 3. Install the packages
+
+With the virtual environment activated, install both the SSG and the ODT conversion library in editable mode:
+
+```bash
+pip install -e odt2web -e asteria
+```
+
+Using editable mode (`-e`) means that changes made to the source code are immediately available without reinstalling the packages.
+

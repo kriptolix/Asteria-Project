@@ -8,6 +8,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from markupsafe import Markup
+
 from .converter import ExtractedImage
 from .frontmatter import Frontmatter
 from .urls import slugify
@@ -136,7 +138,16 @@ class Document:
 
         # Ligado: se houver marcação [[more]] explícita, respeita o autor.
         if self.manual_excerpt is not None:
-            return self.manual_excerpt
+            # manual_excerpt is a genuine HTML fragment — a prefix of
+            # content_html, already through the trusted conversion
+            # pipeline (see references.split_at_more_marker) — not plain
+            # text like the auto-generated branch below. Wrapped in
+            # Markup so `{{ post.excerpt }}` renders it as HTML directly;
+            # without this, Jinja's autoescaping (on by default — see
+            # templating.create_environment) would show the tags
+            # (`<p>`, etc.) as literal visible text instead of an actual
+            # paragraph.
+            return Markup(self.manual_excerpt)
 
         # Sem marcação: sempre gera o excerpt padrão, mesmo que haja description.
         import re

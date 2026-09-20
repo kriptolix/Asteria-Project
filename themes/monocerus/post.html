@@ -18,7 +18,9 @@
 <article class="document document--post">
     <h1 class="document__title">{{ post.title }}</h1>
     <p class="document__meta">
-        {% if post.date %}<time datetime="{{ post.date }}">{{ post.date }}</time>{% endif %}
+        {% if post.date %}
+        <time>{{ post.date | format_date(post.lang, "long") }}</time>
+        {% endif %}
         {% if post.author %} &middot; {{ post.author }}{% endif %}
     </p>
     <div class="document__body">
