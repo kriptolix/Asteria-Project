@@ -9,8 +9,6 @@
   --color-bg-raised: #f8f1e3;
   --color-bg-dim: #e8dcc2;
 
-  --color-header-text: #fdfdfb;
-
   /* Texto sobre fundo claro */
   --color-text: #2a2a2a;
   --color-heading: #1c1c1e;
@@ -31,16 +29,6 @@
 
   --max-width: 1200px;
   --font-body: system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --font-heading: Roboto, system-ui, "Segoe UI", sans-serif;
-}
-
-/* roboto-regular - latin_latin-ext_math */
-@font-face {
-  font-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
-  font-family: 'Roboto';
-  font-style: normal;
-  font-weight: 400;
-  src: url('/fonts/roboto-v51-latin_latin-ext_math-700italic.woff2') format("woff2");
 }
 
 * {
@@ -73,7 +61,7 @@ h3,
 h4,
 h5,
 h6 {
-  font-family: var(--font-heading);
+  font-family: var(--font-body);
   color: var(--color-heading);
   line-height: 1.25;
 }
@@ -110,7 +98,7 @@ a:hover {
 
 .site-header {
   background: var(--color-heading);
-  color: var(--color-header-text);
+  color: var(--color-bg-raised);
 }
 
 .site-header__inner {
@@ -184,7 +172,7 @@ a:hover {
 }
 
 .site-menu a {
-  color: var(--color-header-text);
+  color: var(--color-bg-dim);
   font-size: 0.9rem;
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -616,3 +604,30 @@ th {
     text-decoration: underline;
   }
 }
+
+/* 1. Column count and collapse: the SSG decides where columns make sense */
+@media (min-width: 48rem) {
+  .odt-columns-2 { column-count: 2; column-gap: 2rem; }
+  .odt-columns-3 { column-count: 3; column-gap: 2rem; }
+}
+
+/* 2. Vertical spacing: only margin-bottom inside columns */
+.odt-columns > * { margin-block: 0 1rem; }
+.odt-columns > :has(+ :is(h1, h2, h3, h4, h5, h6)) { margin-block-end: 2rem; }
+
+/* 3. Orphan headings (harmless outside columns, also helps in print) */
+.odt-keep-with-next { break-after: avoid; }
+
+/* 4. Widows/orphans of ordinary text */
+.odt-columns > p { orphans: 2; widows: 2; }
+
+.odt-image { max-width: 100%; }
+figure.odt-image img { max-width: 100%; height: auto; }
+img.odt-image { height: auto; }
+
+.odt-image-small  { max-width: min(100%, 12rem); }
+.odt-image-medium { max-width: min(100%, 24rem); }
+.odt-image-large  { max-width: 100%; }
+
+.odt-image-align-center { display: block; margin-inline: auto; }
+.odt-image-align-right  { display: block; margin-inline-start: auto; }

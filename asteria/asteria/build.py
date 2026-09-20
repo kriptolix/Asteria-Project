@@ -358,12 +358,19 @@ def _resolve_template_name(
     """Resolve o template do tema a usar para este documento.
 
     `template:` no front matter (ver document.Document.template)
-    substitui o padrão baseado no tipo do documento (page.html para
-    páginas, post.html para posts), permitindo que uma página ou post
-    individual use um layout diferente do tema — por exemplo, um
-    template de wiki — enquanto o restante do site continua herdando do
-    modelo padrão. Quando `template:` não é informado, o comportamento é
-    idêntico ao de hoje: sempre `default_name`.
+    substitui o padrão baseado no tipo do documento (layouts/page.html
+    para páginas, layouts/post.html para posts), permitindo que uma
+    página ou post individual use um layout diferente do tema — por
+    exemplo, um template de wiki — enquanto o restante do site continua
+    herdando do modelo padrão. Quando `template:` não é informado, o
+    comportamento é idêntico ao de hoje: sempre `default_name`.
+
+    `template:` não recebe nenhum prefixo automático — o valor é usado
+    exatamente como escrito no front matter, relativo à raiz do tema
+    (igual a `env.get_template` espera). Um tema que segue a convenção
+    `layouts/` para seus templates padrão (ver default_name acima)
+    provavelmente quer o custom template também lá: nesse caso o autor
+    escreve `template: layouts/wiki.html`, não `template: wiki.html`.
 
     Se o template pedido não existir no tema, registra um erro de build
     (em vez de deixar o Jinja estourar `TemplateNotFound` no meio do
@@ -658,7 +665,7 @@ def run_build(
         context = _document_context(
             config, page_site_view, theme_ns, page, _breadcrumbs_for_page(config, page)
         )
-        template_name = _resolve_template_name(env, page, "page.html", diagnostics)
+        template_name = _resolve_template_name(env, page, "layouts/page.html", diagnostics)
         html = _finalize_html(render_template(env, template_name, context), live_reload_script)
         if not dry_run:
             write_page(config.output_dir, url_to_output_path(page.url), html)
@@ -677,7 +684,7 @@ def run_build(
         context = _document_context(
             config, post_site_view, theme_ns, post, _breadcrumbs_for_post(config, post)
         )
-        template_name = _resolve_template_name(env, post, "post.html", diagnostics)
+        template_name = _resolve_template_name(env, post, "layouts/post.html", diagnostics)
         html = _finalize_html(render_template(env, template_name, context), live_reload_script)
         if not dry_run:
             write_page(config.output_dir, url_to_output_path(post.url), html)
@@ -707,7 +714,7 @@ def run_build(
             html = _finalize_html(
                 render_template(
                     env,
-                    "blog.html",
+                    "layouts/blog.html",
                     {
                         "site": lang_site_view,
                         "theme": theme_ns,
@@ -838,7 +845,7 @@ def run_build(
     not_found_html = _finalize_html(
         render_template(
             env,
-            "404.html",
+            "layouts/404.html",
             {
                 "site": site_view,
                 "theme": theme_ns,
@@ -897,7 +904,7 @@ def _write_taxonomy(
     index_html = _finalize_html(
         render_template(
             env,
-            "taxonomy_index.html",
+            "layouts/taxonomy_index.html",
             {
                 "site": site_view,
                 "theme": theme_ns,
@@ -922,7 +929,7 @@ def _write_taxonomy(
         term_html = _finalize_html(
             render_template(
                 env,
-                "taxonomy_term.html",
+                "layouts/taxonomy_term.html",
                 {
                     "site": site_view,
                     "theme": theme_ns,

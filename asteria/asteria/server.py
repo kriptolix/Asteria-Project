@@ -13,6 +13,7 @@ import time
 from pathlib import Path
 
 from .build import run_build
+from .config import load_config
 from .errors import AsteriaError
 
 LIVE_RELOAD_ENDPOINT = "/__asteria_live_reload__"
@@ -166,7 +167,7 @@ def serve(
 
     # Mirrors run_build's own path resolution (project_root / "source" /
     # config_filename): all editable project files — content, static
-    # assets, themes, site.yaml — live under source/, not directly under
+    # assets, site.yaml — live under source/, not directly under
     # project_root.
     source_dir = project_root / "source"
     watch_paths = [
@@ -174,20 +175,43 @@ def serve(
         for p in [
             source_dir / "content",
             source_dir / "static",
-            source_dir / "themes",
             source_dir / "site.yaml",
         ]
         if p.exists()
     ]
+
+    # The active theme's directory — SiteConfig.theme_dir combines
+    # `theme.directory` and `theme.name` from site.yaml (falling back to
+    # Asteria's own bundled theme when the project doesn't have its own),
+    # so this follows whatever the site is actually configured to use
+    # instead of a fixed guess at `source/themes`. Loaded again here
+    # (rather than threaded through from the initial build above)
+    # because BuildResult doesn't carry the SiteConfig it built from; the
+    # try/except is defensive only — this same file already parsed
+    # successfully moments ago for the initial build.
+    try:
+        theme_dir = load_config(source_dir / "site.yaml").theme_dir
+        if theme_dir.exists():
+            watch_paths.append(theme_dir)
+    except AsteriaError:
+        pass
+
     if not watch_paths:
-        print("Nothing to observe (source/content, source/static, source/themes, source/site.yaml not found).")
+        print("Nothing to observe (source/content, source/static, source/site.yaml, theme directory not found).")
         _idle_until_interrupted()
         httpd.shutdown()
         return 0
 
     from watchfiles import watch as watchfiles_watch
 
-    watched_names = ", ".join(str(p.relative_to(project_root)) for p in watch_paths)
+    # The theme directory may be Asteria's own bundled theme, which
+    # lives inside the installed package rather than under project_root
+    # — relative_to() would raise for that one, so fall back to an
+    # absolute path in the (rare) case it isn't actually relative.
+    watched_names = ", ".join(
+        str(p.relative_to(project_root)) if p.is_relative_to(project_root) else str(p)
+        for p in watch_paths
+    )
     print(f"Watching for changes in: {watched_names} (live reload active)\n")
 
     try:

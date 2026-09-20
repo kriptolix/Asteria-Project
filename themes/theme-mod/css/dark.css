@@ -1,0 +1,29 @@
+:root {
+  --color-bg: #17140f;
+  --color-bg-raised: #201c15;
+  --color-bg-dim: #262115;
+
+  --color-text: #d9cdb0;
+  --color-heading: #f1e6c8;
+  --color-muted: #9c9078;
+
+  --color-accent: #7fa4bf;
+  --color-accent-light: #a9c4d8;
+  --color-accent-hover: #cfe0ec;
+
+  --color-border: #3a3326;
+
+  --color-seal-bg: #201c15;
+  --color-seal-border: #d9cdb0;
+  --color-seal-text: #d9cdb0;
+  --color-seal-accent: #2dd4bf;
+}
+
+.site-header {
+  background: #0c0a07;
+  color: var(--color-text);
+}
+
+.site-wordmark { color: var(--color-heading); }
+
+pre, code { background: var(--color-bg-dim); }
