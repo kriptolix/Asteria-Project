@@ -1,4 +1,9 @@
-{% import "_nav.html" as navmacros %}
+{% import "partials/_nav.html" as navmacros %}
+{% import "partials/_footer.html" as footer %}
+{% import "partials/_header.html" as header %}
+{% import "partials/_breadcrumbs.html" as breadcrumbsmacros %}
+{% import "partials/_lang_switcher.html" as langswitch %}
+{% import "partials/_site_menu.html" as sitemenu %}
 {% set current_lang = lang if lang is defined else site.default_language %}
 <!doctype html>
 <html lang="{{ current_lang }}">
@@ -24,9 +29,7 @@
     {% if site.feed_url %}
     <link rel="alternate" type="application/rss+xml" title="{{ site.title }}" href="{{ site.feed_url }}">
     {% endif %}
-
-    {# Anuncia para buscadores as versões deste mesmo conteúdo em outros
-    idiomas (só disponível quando o post tem traduções vinculadas). #}
+    
     {% if post is defined and post.translations %}
     <link rel="alternate" hreflang="{{ current_lang }}" href="{{ site.url }}{{ canonical_path }}">
     {% for translation_lang, translated in post.translations.items() %}
@@ -41,96 +44,27 @@
 </head>
 
 <body>
-    <header class="site-header">
-        <div class="site-header__inner">
-            <a class="title-box" href="/">
-                {% if canonical_path.startswith("/pages/monocerus/") %}
-                <div class="custom-header-monocerus">Sob um Céu Estranho</div>
-                {% else %}
-                <div class="custom-header-line">O Titulo de hoje é...</div>
-                <span class="site-title">{{ site.title }}</span>
-                {% endif %}
-            </a>
-            <nav class="site-menu">
-                <ul>
-                    {% for item in site.menu %}
-                    <li><a href="{{ item.url }}">{{ item.title }}</a></li>
-                    {% endfor %}
-                </ul>
-            </nav>
-            {% if site.languages|length > 1 %}
-            <nav class="lang-switcher" aria-label="idiomas">
-                <ul>
-                    {% for switch_lang in site.languages %}
-                    {% set translated = post.translations.get(switch_lang) if (post is defined and post.translations)
-                    else none %}
-                    <li>
-                        {% if switch_lang == current_lang %}
-                        <span class="lang-switcher__current" aria-current="true">{{ switch_lang }}</span>
-                        {% elif translated %}
-                        <a href="{{ translated.url }}" hreflang="{{ switch_lang }}">{{ switch_lang }}</a>
-                        {% else %}
-                        <a href="{{ site.blog_index_urls.get(switch_lang, '/') }}" hreflang="{{ switch_lang }}">{{
-                            switch_lang }}</a>
-                        {% endif %}
-                    </li>
-                    {% endfor %}
-                </ul>
-            </nav>
-            {% endif %}
-        </div>
-    </header>
 
+    {{ header.render_header(site, canonical_path) }}
+    
     <div class="site-layout">
         <div class="sidebar-column">
             {% block sidebar %}
             {% if show_navigation %}
             <aside class="sidebar-nav">
-                <h2>Navegação</h2>
-                {# `site.tocs` always exists (possibly empty) — no
-                   `is defined` guard needed here, unlike `page`/
-                   `show_toc`, which only exist in page.html/post.html's
-                   own context. See _nav.html for how each entry's TOC
-                   is looked up and grafted in. #}
+                <h2>{{ t("navigation", page.lang) }}</h2>                
                 {{ navmacros.render_nav(site.nav, canonical_path, site.tocs) }}
             </aside>
             {% endif %}
             {% endblock %}
         </div>
         <main class="site-content">
-            {% if breadcrumbs and breadcrumbs|length > 1 %}
-            <nav class="breadcrumbs" aria-label="breadcrumbs">
-                {% for crumb in breadcrumbs %}
-                {% if not loop.last %}<a href="{{ crumb.url }}">{{ crumb.title }}</a><span
-                    class="breadcrumbs__sep">/</span>
-                {% else %}<span class="breadcrumbs__current">{{ crumb.title }}</span>{% endif %}
-                {% endfor %}
-            </nav>
-            {% endif %}
+            {{ breadcrumbsmacros.render_breadcrumbs(breadcrumbs) }}
             {% block content %}{% endblock %}
         </main>
     </div>
 
-    <footer class="site-footer">
-        <div class="footer-elements">
-            <div class="footer-info">
-                <div>
-                    2026 &copy; {{ site.title }}
-                </div>
-                <div>{{ t("made_with", site.language) }}</div>
-            </div>
-
-            {% if site.social %}
-            <div class="social-links"> {% for item in site.social %}
-                <a href="{{ item.url }}" class="social-link" aria-label="{{ item.label }}" title="{{ item.label }}"
-                    rel="me noopener">
-                    <img src="{{ asset('/images/' ~ (item.platform | lower) ~ '.svg') }}" alt="{{ item.label }}">
-                </a>
-                {% endfor %}
-            </div>
-            {% endif %}
-        </div>
-    </footer>
+    {{ footer.render_footer(site) }}
 </body>
 
 </html>

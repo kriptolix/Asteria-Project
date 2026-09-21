@@ -12,7 +12,7 @@
         {% endfor %}
     </ul>
     {% else %}
-    <p>Nenhum item encontrado.</p>
+    <p>{{ t("taxonomy_empty", page.lang) }}</p>
     {% endif %}
 </section>
 {% endblock %}

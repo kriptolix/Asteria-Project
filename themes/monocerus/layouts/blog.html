@@ -15,15 +15,15 @@
         </li>
         {% endfor %}
     </ul>
-    {% else %}
-    <p>Nenhum post publicado ainda.</p>
+    {% else %}   
+    <p>{{ t("posts_empty", page.lang) }}</p>
     {% endif %}
 
     {% if pagination.total_pages > 1 %}
     <nav class="pagination">
-        {% if pagination.prev_url %}<a href="{{ pagination.prev_url }}">&larr; Mais recentes</a>{% endif %}
-        <span class="pagination__status">Página {{ pagination.number }} de {{ pagination.total_pages }}</span>
-        {% if pagination.next_url %}<a href="{{ pagination.next_url }}">Mais antigos &rarr;</a>{% endif %}
+        {% if pagination.prev_url %}<a href="{{ pagination.prev_url }}">&larr; {{ t("posts_newest", page.lang) }}</a>{% endif %}
+        <span class="pagination__status">{{ t("pagination_status", page.lang, number=pagination.number, total_pages=pagination.total_pages) }}</span>
+        {% if pagination.next_url %}<a href="{{ pagination.next_url }}">{{ t("posts_oldest", page.lang) }} &rarr;</a>{% endif %}
     </nav>
     {% endif %}
 </section>

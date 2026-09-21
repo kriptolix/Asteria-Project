@@ -1,0 +1,16 @@
+{% import "partials/_social_links.html" as social %}
+
+{% macro render_footer(site, year=2026) %}
+<footer class="site-footer">
+    <div class="footer-elements">
+        <div class="footer-info">
+            <div>{{ year }} &copy; {{ site.title }}</div>
+            <div>
+                {{ t("made_with", site.language) }}
+                <a href="https://github.com/kriptolix/Asteria-Project">Asteria</a>
+            </div>
+        </div>
+        {{ social.render_social_links(site.social) }}
+    </div>
+</footer>
+{% endmacro %}

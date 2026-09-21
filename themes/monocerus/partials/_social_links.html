@@ -1,9 +1,3 @@
-{# Renders the social icon row. `links` is `site.social` — a list of
-   SocialLink(platform, url, label). Expects an icon at
-   /images/<platform lowercased>.svg (via the `asset()` global, so it
-   still resolves correctly if fingerprinting is on). Renders nothing at
-   all when `links` is empty, so a caller never needs its own
-   `{% if site.social %}` guard around this. #}
 {% macro render_social_links(links) %}
 {% if links %}
 <div class="social-links">

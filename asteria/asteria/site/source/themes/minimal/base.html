@@ -51,12 +51,7 @@
             {% block sidebar %}
             {% if show_navigation %}
             <aside class="sidebar-nav">
-                <h2>Navegação</h2>
-                {# `site.tocs` always exists (possibly empty) — no
-                   `is defined` guard needed here, unlike `page`/
-                   `show_toc`, which only exist in page.html/post.html's
-                   own context. See partials/_nav.html for how each
-                   entry's TOC is looked up and grafted in. #}
+                <h2>{{ t("navigation", page.lang) }}</h2>                
                 {{ navmacros.render_nav(site.nav, canonical_path, site.tocs) }}
             </aside>
             {% endif %}

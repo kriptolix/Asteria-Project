@@ -3,12 +3,15 @@
 :::
 
 problemas do odt2web
-
-verificar estilo para avisos multi paragrafo
-verificar soluções para conteúdo órfão em colunas.
+.
 <span class="odt-char-t2">eu </span>
-descobrir como lidar com tabelas de forma mais especifica 
 
+##
+
+adicionar menu title ao front matter, isso vai permitir remover title
+
+
+##
 elementos adicionais:
 Tabs
 card

@@ -1,1 +1,0 @@
-Monocerus is the theme of my personal site, here for exemple proposites.

@@ -1,0 +1,23 @@
+{% import "partials/_site_menu.html" as sitemenu %}
+{% import "partials/_lang_switcher.html" as langswitch %}
+
+{% macro render_header(site, canonical_path) %}
+<header class="site-header">
+    <div class="site-header__inner">
+        <div>
+            {% set intro_menu_item = site.menu | selectattr("page_id", "equalto", "introdução") | first | default(none) %}
+            <a class="title-box" href="/">
+                {% if intro_menu_item and menu_item_active(intro_menu_item, canonical_path) %}
+                <div class="custom-header-monocerus">Sob um Céu Estranho</div>
+                {% else %}
+                <div class="custom-header-line">O Titulo de hoje é...</div>
+                <span class="site-title">{{ site.title }}</span>
+                {% endif %}
+            </a>
+        </div>
+        {{ sitemenu.render_site_menu(site.menu, canonical_path) }}
+        {% set post_translations = post.translations if (post is defined and post.translations) else {} %}
+        {{ langswitch.render_lang_switcher(site.languages, current_lang, site.blog_index_urls, post_translations) }}
+    </div>
+</header>
+{% endmacro %}
