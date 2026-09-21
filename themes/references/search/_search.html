@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Search</title>
+
+    <link rel="stylesheet" href="./search.css">
+    <script src="./search.js" defer></script>
+</head>
+
+<body>
+
+    <header>
+
+        <strong>Meu site</strong>
+
+        <form id="search-form" role="search">
+
+            <label for="search-input" class="sr-only">
+                Buscar
+            </label>
+
+            <input
+                id="search-input"
+                type="search"
+                placeholder="Buscar..."
+                autocomplete="off"
+            >
+
+            <button type="submit">
+                🔍 Buscar
+            </button>
+
+        </form>
+
+    </header>
+
+
+    <main>
+        <h1>Conteúdo da página</h1>
+        <p>Conteúdo normal do site.</p>
+    </main>
+
+
+    <div id="search-overlay" class="search-overlay">
+
+        <div
+            id="search-window"
+            class="search-window"
+        >
+
+            <h2>Resultados</h2>
+
+            <p>Resultado de exemplo.</p>
+            <p>Outro resultado.</p>
+
+        </div>
+
+    </div>
+
+</body>
+</html>

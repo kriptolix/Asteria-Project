@@ -32,32 +32,17 @@ class SiteView:
    
     menu: list[dict[str, str]] = field(default_factory=list)
     nav: list[NavEntry] = field(default_factory=list)
-    social: list[Any] = field(default_factory=list)
-    # Sitewide taxonomy listing (all categories/tags across every post in
-    # this language), so any template — not just taxonomy_index.html — can
-    # render a "browse by category" block (e.g. a sidebar) via
-    # `site.categories` / `site.tags`. Same rationale as menu/nav: built
-    # per language in build.py and swapped in by `_site_view_for_lang`.
+    social: list[Any] = field(default_factory=list)    
+    
     categories: list[Any] = field(default_factory=list)
     tags: list[Any] = field(default_factory=list)
-    # Páginas/posts com `featured: true` no front matter (ver
-    # document.Document.featured), por idioma — permite blocos tipo
-    # "pages overview" em qualquer template via `site.featured_pages` /
-    # `site.featured_posts`, sem depender do contexto de uma página
-    # específica.
+   
     featured_pages: list[Any] = field(default_factory=list)
     featured_posts: list[Any] = field(default_factory=list)
-    # Every page/post in the current language, unfiltered — lets a theme
-    # build things like a "recent posts" sidebar widget from any
-    # template, not just blog.html. `posts` is newest-first; `pages`
-    # keeps discovery order. See build._LangSiteData.
+ 
     pages: list[Any] = field(default_factory=list)
     posts: list[Any] = field(default_factory=list)
-    # {document.url: document.toc} for every page/post in the current
-    # language with a TOC to show — see build._LangSiteData.tocs. Lets a
-    # theme graft any page's own TOC onto its `site.nav` entry (e.g. a
-    # MkDocs-style "expand to show headings" nav), not just the current
-    # page's.
+ 
     tocs: dict[str, Any] = field(default_factory=dict)
 
 

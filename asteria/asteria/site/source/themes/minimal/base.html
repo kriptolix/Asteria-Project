@@ -1,14 +1,23 @@
-{% import "_nav.html" as navmacros %}
+{% import "partials/_nav.html" as navmacros %}
+{% import "partials/_footer.html" as footer %}
+{% import "partials/_header.html" as header %}
+{% import "partials/_breadcrumbs.html" as breadcrumbsmacros %}
+{% import "partials/_lang_switcher.html" as langswitch %}
+{% import "partials/_site_menu.html" as sitemenu %}
 {% set current_lang = lang if lang is defined else site.default_language %}
 <!doctype html>
 <html lang="{{ current_lang }}">
+
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}{{ site.title }}{% endblock %}</title>
     <meta name="description" content="{% block description %}{{ site.description }}{% endblock %}">
     <link rel="canonical" href="{{ site.url }}{{ canonical_path }}">
-    <link rel="stylesheet" href="{{ asset('/css/' ~ theme_css ~ '.css') }}">
+    <link rel="stylesheet" href="{{ asset('/css/light.css') }}">
+    {% if theme_css == 'dark' %}
+    <link rel="stylesheet" href="{{ asset('/css/dark.css') }}">
+    {% endif %}
 
     <meta property="og:site_name" content="{{ site.title }}">
     <meta property="og:type" content="{{ og_type or 'website' }}">
@@ -20,86 +29,46 @@
     {% if site.feed_url %}
     <link rel="alternate" type="application/rss+xml" title="{{ site.title }}" href="{{ site.feed_url }}">
     {% endif %}
-
-    {# Anuncia para buscadores as versões deste mesmo conteúdo em outros
-       idiomas (só disponível quando o post tem traduções vinculadas). #}
+    
     {% if post is defined and post.translations %}
     <link rel="alternate" hreflang="{{ current_lang }}" href="{{ site.url }}{{ canonical_path }}">
     {% for translation_lang, translated in post.translations.items() %}
     <link rel="alternate" hreflang="{{ translation_lang }}" href="{{ site.url }}{{ translated.url }}">
     {% endfor %}
     {% endif %}
+
+    <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png">
+    <link rel="manifest" href="/favicon/site.webmanifest">
 </head>
+
 <body>
-    <header class="site-header">
-        <div class="site-header__inner">
-            <div>
-                <a class="site-title" href="/">{{ site.title }}</a>                
-            </div>
-            <nav class="site-menu">
-                <ul>
-                    {% for item in site.menu %}
-                    <li><a href="{{ item.url }}">{{ item.title }}</a></li>
-                    {% endfor %}
-                </ul>
-            </nav>
-            {% if site.languages|length > 1 %}
-            <nav class="lang-switcher" aria-label="idiomas">
-                <ul>
-                    {% for switch_lang in site.languages %}
-                    {% set translated = post.translations.get(switch_lang) if (post is defined and post.translations) else none %}
-                    <li>
-                        {% if switch_lang == current_lang %}
-                        <span class="lang-switcher__current" aria-current="true">{{ switch_lang }}</span>
-                        {% elif translated %}
-                        <a href="{{ translated.url }}" hreflang="{{ switch_lang }}">{{ switch_lang }}</a>
-                        {% else %}
-                        <a href="{{ site.blog_index_urls.get(switch_lang, '/') }}" hreflang="{{ switch_lang }}">{{ switch_lang }}</a>
-                        {% endif %}
-                    </li>
-                    {% endfor %}
-                </ul>
-            </nav>
-            {% endif %}
-        </div>
-    </header>
+    {{ header.render_header(site, canonical_path) }}
 
     <div class="site-layout">
         <div class="sidebar-column">
-        {% block sidebar %}
-        {% if show_navigation %}
-        <aside class="sidebar-nav">
-            <h2>Navegação</h2>
-            {{ navmacros.render_nav(site.nav, canonical_path) }}
-        </aside>
-        {% endif %}
-        {% endblock %}
+            {% block sidebar %}
+            {% if show_navigation %}
+            <aside class="sidebar-nav">
+                <h2>Navegação</h2>
+                {# `site.tocs` always exists (possibly empty) — no
+                   `is defined` guard needed here, unlike `page`/
+                   `show_toc`, which only exist in page.html/post.html's
+                   own context. See partials/_nav.html for how each
+                   entry's TOC is looked up and grafted in. #}
+                {{ navmacros.render_nav(site.nav, canonical_path, site.tocs) }}
+            </aside>
+            {% endif %}
+            {% endblock %}
         </div>
         <main class="site-content">
-            {% if breadcrumbs and breadcrumbs|length > 1 %}
-            <nav class="breadcrumbs" aria-label="breadcrumbs">
-                {% for crumb in breadcrumbs %}
-                {% if not loop.last %}<a href="{{ crumb.url }}">{{ crumb.title }}</a><span class="breadcrumbs__sep">/</span>
-                {% else %}<span class="breadcrumbs__current">{{ crumb.title }}</span>{% endif %}
-                {% endfor %}
-            </nav>
-            {% endif %}
+            {{ breadcrumbsmacros.render_breadcrumbs(breadcrumbs) }}
             {% block content %}{% endblock %}
         </main>
     </div>
 
-    <footer class="site-footer">
-        {% if site.social %}
-        <div class="social-links">
-            {% for item in site.social %}
-            <a href="{{ item.url }}" class="social-link" aria-label="{{ item.label }}" title="{{ item.label }}"
-                rel="me noopener">
-                <img src="{{ asset('/images/' ~ (item.platform | lower) ~ '.svg') }}" alt="{{ item.label }}">
-            </a>
-            {% endfor %}
-        </div>
-        {% endif %}
-        <p>&copy; {{ site.title }}</p>
-    </footer>
+    {{ footer.render_footer(site) }}
 </body>
+
 </html>

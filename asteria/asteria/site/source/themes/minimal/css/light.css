@@ -3,17 +3,32 @@
   --color-text: #1a1a1a;
   --color-accent: #2453ff;
   --color-muted: #666;
+  --color-tag-bg: #f0f2ff;
+  --color-nav-border: #eee;
+
   --max-width: 860px;
+
+  --font-body: system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
 * { box-sizing: border-box; }
 
 body {
   margin: 0;
-  font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-body);
   color: var(--color-text);
   background: var(--color-bg);
   line-height: 1.6;
+}
+
+body {
+    min-height: 100%;
+}
+
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
 }
 
 .site-header__inner {
@@ -66,7 +81,7 @@ body {
 
 .tag {
   display: inline-block;
-  background: #f0f2ff;
+  background: var(--color-tag-bg);
   color: var(--color-accent);
   padding: 0.15rem 0.6rem;
   border-radius: 999px;
@@ -79,6 +94,7 @@ body {
   color: var(--color-muted);
   padding: 2rem 1rem;
   font-size: 0.85rem;
+  margin-top: auto;
 }
 
 .social-links {
@@ -86,6 +102,7 @@ body {
   justify-content: center;
   gap: 0.75rem;
   margin-bottom: 0.75rem;
+  margin-top: 0.25rem;
 }
 
 .social-link {
@@ -252,7 +269,7 @@ body {
 
 a.tag, a.category {
   display: inline-block;
-  background: #f0f2ff;
+  background: var(--color-tag-bg);
   color: var(--color-accent);
   padding: 0.15rem 0.6rem;
   border-radius: 999px;
@@ -266,7 +283,7 @@ a.tag, a.category {
   justify-content: space-between;
   margin-top: 2rem;
   padding-top: 1rem;
-  border-top: 1px solid #eee;
+  border-top: 1px solid var(--color-nav-border);
   font-size: 0.9rem;
 }
 

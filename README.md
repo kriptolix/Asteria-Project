@@ -62,7 +62,7 @@ In the future, both the SSG and the conversion library will be available on [PyP
 
 ```bash
 git clone https://github.com/kriptolix/Asteria-Project.git
-cd Asteria Project
+cd Asteria-Project
 ```
 
 ### 2. Create a virtual environment
