@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Tabs</title>
+
+    <link rel="stylesheet" href="./tabs.css">
+    <script src="./tabs.js" defer></script>
+</head>
+
+<body>
+
+    <main>
+        <h1>Documentação</h1>
+
+        <!--
+            data-tabs marks this group for tabs.js to initialize.
+            Multiple independent .tabs groups can coexist on the same
+            page — ids on tab/panel pairs are optional, tabs.js fills
+            in any missing aria-controls/id automatically.
+
+            Panels intentionally start without a `hidden` attribute:
+            if this script fails to load, every panel's content stays
+            visible (stacked) instead of disappearing. tabs.js is what
+            hides every panel but the active one.
+
+            Optional:
+              data-sync-hash                 keeps the active tab in the
+                                              URL hash (e.g. #panel-faq),
+                                              so it's bookmarkable/shareable.
+              aria-orientation="vertical"     on the tablist, combined with
+                                              class="tabs--vertical" here,
+                                              switches to a vertical layout
+                                              (see tabs.css).
+        -->
+        <div class="tabs" data-tabs>
+
+            <div class="tabs__list" role="tablist" aria-label="Seções da documentação">
+                <button type="button" class="tabs__tab" role="tab" id="tab-instalacao"
+                    aria-selected="true" aria-controls="panel-instalacao">
+                    Instalação
+                </button>
+                <button type="button" class="tabs__tab" role="tab" id="tab-configuracao"
+                    aria-selected="false" aria-controls="panel-configuracao" tabindex="-1">
+                    Configuração
+                </button>
+                <button type="button" class="tabs__tab" role="tab" id="tab-faq"
+                    aria-selected="false" aria-controls="panel-faq" tabindex="-1">
+                    Perguntas frequentes
+                </button>
+            </div>
+
+            <div class="tabs__panel" role="tabpanel" id="panel-instalacao"
+                aria-labelledby="tab-instalacao" tabindex="0">
+                <p>Conteúdo da página de instalação.</p>
+            </div>
+
+            <div class="tabs__panel" role="tabpanel" id="panel-configuracao"
+                aria-labelledby="tab-configuracao" tabindex="0">
+                <p>Conteúdo da página de configuração.</p>
+            </div>
+
+            <div class="tabs__panel" role="tabpanel" id="panel-faq"
+                aria-labelledby="tab-faq" tabindex="0">
+                <p>Conteúdo da página de perguntas frequentes.</p>
+            </div>
+
+        </div>
+    </main>
+
+</body>
+</html>

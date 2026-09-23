@@ -1,0 +1,26 @@
+{% import "partials/_card.html" as cardmacros %}
+
+{# Lays a list of items out in a responsive grid of cards.
+
+   `items`         -> any list of objects/dicts compatible with
+                       render_card() (see _card.html for the fields).
+   `columns`        -> max columns at desktop width. The grid steps
+                        down to 2 columns at tablet width and 1 on
+                        phones regardless of this value (see the
+                        .card-grid rules in light.css).
+   `empty_message`   -> optional text shown instead of the grid when
+                          `items` is empty. Pass a translated string
+                          (e.g. t("posts_empty", page.lang)) — this
+                          macro doesn't hardcode any language itself.
+#}
+{% macro render_grid(items, columns=3, empty_message=none) %}
+{% if items %}
+<div class="card-grid" style="--card-grid-columns: {{ columns }};">
+    {% for item in items %}
+    {{ cardmacros.render_card(item) }}
+    {% endfor %}
+</div>
+{% elif empty_message %}
+<p>{{ empty_message }}</p>
+{% endif %}
+{% endmacro %}

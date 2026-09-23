@@ -11,6 +11,9 @@ pt-BR:
   back_to_home: "Voltar a página inicial"
   navigation: "Navegação"
   made_with: "Feito com"
+  blog_menu_label: "Artigos"
+  close_button: "Fechar"
+  nav_toc_sections: "Sessões"
 
 en:
   reading_time: "{minutes} min read"
@@ -25,7 +28,9 @@ en:
   back_to_home: "Return to the home page"
   navigation: "Navigation"
   made_with: "Made with"
-
+  blog_menu_label: "Articles"
+  close_button: "Close"
+  nav_toc_sections: "sections"
 
 
 

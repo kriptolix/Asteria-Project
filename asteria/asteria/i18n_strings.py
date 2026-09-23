@@ -68,6 +68,7 @@ def translate(
     key: str,
     lang: str,
     default_language: str,
+    fallback: str | None = None,
     **kwargs: Any,
 ) -> str:
     """Looks up `strings[lang][key]`, falling back to
@@ -77,15 +78,19 @@ def translate(
     references). `**kwargs` are interpolated via `str.format`, e.g.
     `minutes=5` for a template string like "{minutes} min de leitura".
 
-    Returns the key itself, wrapped in `??...??`, when it's missing from
-    every language — visible enough in the rendered page to be noticed
-    and fixed, instead of silently showing nothing. Unlike a broken
-    `[[reference]]`, a missing UI string is deliberately never a build
-    error: one missing/mistyped translation key shouldn't block an
-    entire build."""
+    When the key is missing from every language, returns `fallback` if
+    one was given — for a caller that has a sensible built-in English
+    (or otherwise reasonable) default and only wants the theme's
+    `i18n.yaml` to be able to override it, not required to define it at
+    all (see build._build_menu's use for the "blog" menu entry's label).
+    Without a `fallback`, returns the key itself wrapped in `??...??` —
+    visible enough in the rendered page to be noticed and fixed, instead
+    of silently showing nothing. Unlike a broken `[[reference]]`, a
+    missing UI string is deliberately never a build error: one
+    missing/mistyped translation key shouldn't block an entire build."""
     template = strings.get(lang, {}).get(key) or strings.get(default_language, {}).get(key)
     if template is None:
-        return f"??{key}??"
+        return fallback if fallback is not None else f"??{key}??"
     try:
         return template.format(**kwargs)
     except (KeyError, IndexError):

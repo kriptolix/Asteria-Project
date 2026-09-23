@@ -1,0 +1,49 @@
+{# Generic content card. `item` can be a post, a page, or any object/dict
+   that exposes at least `title` and `url` — every other field is
+   optional and simply skipped when falsy, so the same macro works for
+   posts, pages, or a hand-authored list of dicts alike.
+
+   Fields read from `item` (all but title/url are optional):
+     item.title                    -> card heading, and the card's link text
+     item.url                       -> link target for the whole card
+     item.image                      -> cover image URL
+     item.image_alt                   -> alt text for the cover image
+     item.date                         -> passed through the site's format_date filter
+     item.lang                          -> language for format_date (falls back to page.lang)
+     item.author                         -> shown next to the date
+     item.excerpt                         -> short summary text (clamped to 3 lines in CSS)
+     item.tags / item.categories           -> rendered as the same pill links post.html uses
+
+   The whole card is clickable via a "stretched link" on the title
+   (see .card__title a::after in light.css) rather than wrapping the
+   image in a second, redundant link — one real link per card, better
+   for keyboard/screen-reader users, larger click target for everyone.
+#}
+{% macro render_card(item) %}
+<article class="card">
+    {% if item.image %}
+    <div class="card__media">
+        <img src="{{ item.image }}" alt="{{ item.image_alt or '' }}" loading="lazy">
+    </div>
+    {% endif %}
+    <div class="card__body">
+        <h3 class="card__title"><a href="{{ item.url }}">{{ item.title }}</a></h3>
+        {% if item.date or item.author %}
+        <p class="card__meta">
+            {% if item.date %}<time>{{ item.date | format_date(item.lang or page.lang, "short") }}</time>{% endif %}
+            {% if item.date and item.author %} &middot; {% endif %}
+            {% if item.author %}{{ item.author }}{% endif %}
+        </p>
+        {% endif %}
+        {% if item.excerpt %}
+        <p class="card__excerpt">{{ item.excerpt }}</p>
+        {% endif %}
+        {% if item.tags or item.categories %}
+        <p class="card__tags">
+            {% for tag in item.tags %}<a class="tag" href="/tags/{{ tag|slug }}/">{{ tag }}</a>{% endfor %}
+            {% for cat in item.categories %}<a class="category" href="/categories/{{ cat|slug }}/">{{ cat }}</a>{% endfor %}
+        </p>
+        {% endif %}
+    </div>
+</article>
+{% endmacro %}

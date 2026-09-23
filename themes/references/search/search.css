@@ -1,3 +1,20 @@
+:root {
+  /* Falls back to this theme's own tokens when present (--color-*),
+     otherwise uses the defaults on the right — keeps this component
+     usable standalone in any theme. */
+  --search-bg: var(--color-bg, #ffffff);
+  --search-text: var(--color-text, #1a1a1a);
+  --search-muted: var(--color-muted, #666);
+  --search-accent: var(--color-accent, #2453ff);
+  --search-border: var(--color-nav-border, #eee);
+  --search-mark-bg: #fff1a8;
+  --search-hover-bg: rgb(0 0 0 / 5%);
+
+  /* Set by search.js from the real header height — 73px is just the
+     fallback used before JS runs / if JS fails to load. */
+  --search-header-height: 73px;
+}
+
 body {
     margin: 0;
     font-family: system-ui, sans-serif;
@@ -50,10 +67,12 @@ header {
     position: fixed;
 
     /*
-     * Começa abaixo do header.
-     * Portanto o header continua acessível.
+     * Começa abaixo do header, usando a altura real medida por
+     * search.js (--search-header-height). Assim o header continua
+     * acessível e o overlay não fica errado se a altura do header
+     * mudar (responsivo, título maior, etc).
      */
-    top: 73px;
+    top: var(--search-header-height, 73px);
     right: 0;
     bottom: 0;
     left: 0;
@@ -75,7 +94,7 @@ header {
 }
 
 
-/* Resultados */
+/* Janela de resultados */
 
 .search-window {
     width: min(600px, 90vw);
@@ -84,8 +103,85 @@ header {
 
     padding: 2rem;
 
-    background: white;
+    background: var(--search-bg);
+    color: var(--search-text);
     border-radius: 12px;
 
     box-shadow: 0 20px 60px rgb(0 0 0 / 25%);
+}
+
+.search-window__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.search-window__header h2 {
+    margin: 0 0 .5rem;
+}
+
+.search-window__close {
+    flex-shrink: 0;
+    border: 0;
+    background: none;
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+    color: var(--search-muted);
+    padding: .25rem;
+}
+
+.search-window__close:hover {
+    color: var(--search-accent);
+}
+
+/* Live region: anuncia "N resultados", "Nenhum resultado" etc para
+   leitores de tela sem precisar mover o foco para fora do campo. */
+.search-status {
+    margin: 0 0 1rem;
+    color: var(--search-muted);
+    font-size: .9rem;
+    min-height: 1.2em;
+}
+
+.search-results {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: .25rem;
+}
+
+.search-result {
+    display: block;
+    padding: .6rem .75rem;
+    border-radius: 8px;
+    text-decoration: none;
+    color: inherit;
+}
+
+.search-result:hover,
+.search-result:focus-visible {
+    background: var(--search-hover-bg);
+    outline: none;
+}
+
+.search-result__title {
+    display: block;
+    font-weight: 600;
+    color: var(--search-text);
+}
+
+.search-result__excerpt {
+    margin: .2rem 0 0;
+    font-size: .85rem;
+    color: var(--search-muted);
+}
+
+.search-result mark {
+    background: var(--search-mark-bg);
+    color: inherit;
+    border-radius: 2px;
 }

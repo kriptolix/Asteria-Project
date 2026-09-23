@@ -1,0 +1,8 @@
+{
+    "yaml.disableSchemaDetection": [
+        "file:///var/home/k/Projetos/Asteria%20Project/my-site/source/site.yaml"
+    ],
+    "yaml.schemas": {
+        "https://www.schemastore.org/mkdocs-1.6.json": "file:///var/home/k/Projetos/Asteria%20Project/my-site/source/site.yaml"
+    }
+}

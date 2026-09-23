@@ -25,6 +25,7 @@ KNOWN_FIELDS = {
     "template",
     "featured",
     "cover",
+    "menu_title",
 }
 
 FRONTMATTER_BLOCK_RE = re.compile(
@@ -47,18 +48,33 @@ class Frontmatter:
     description: str = ""
     slug: str | None = None
     variant: str | None = None  
-  
+    # Nome de um template do tema (ex: "wiki.html") a usar no lugar do
+    # padrão baseado no tipo do documento (page.html / post.html). None
+    # mantém o padrão — ver document.Document.template e
+    # build._resolve_template_name.
     template: str | None = None
     toc: bool = True  
     navigation: bool = False  
     lang: str | None = None
-   
+    # Marca a página/post para aparecer em `site.featured_pages` /
+    # `site.featured_posts` — ver document.Document.featured e
+    # build._document_context / build.run_build.
     featured: bool = False
     # Caminho (absoluto, a partir da raiz do site) de uma imagem de capa
     # em static/, ex: "/covers/meu-post.jpg". Propositalmente NUNCA
     # extraída do corpo do .odt — ver document.Document.cover. None
     # quando não informado.
     cover: str | None = None
+    # Rótulo alternativo a usar quando este documento é referenciado por
+    # um `page:` do `menu:` (site.yaml) SEM `title:` explícito — permite
+    # que o link do menu diga algo mais curto/diferente do título real
+    # da página (ex: "Sobre" no menu vs. "Sobre a Empresa XYZ Corp" como
+    # título), continuando traduzível por idioma (é front matter de cada
+    # documento, não uma string fixa em site.yaml). Ver build._build_menu,
+    # onde a ordem de prioridade é: title: do menu > menu_title: do
+    # documento > title: do documento. None quando não informado — ver
+    # document.Document.menu_title.
+    menu_title: str | None = None
     extra: dict[str, str] = field(default_factory=dict)
 
     def get(self, key: str, default=None):
@@ -114,6 +130,7 @@ def extract_frontmatter(
         lang=raw_fields.get("lang") or None,
         featured=_parse_bool(raw_fields.get("featured"), default=False),
         cover=raw_fields.get("cover") or None,
+        menu_title=raw_fields.get("menu_title") or None,
         extra={k: v for k, v in raw_fields.items() if k not in KNOWN_FIELDS},
     )
 

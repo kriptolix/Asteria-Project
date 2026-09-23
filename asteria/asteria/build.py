@@ -18,6 +18,7 @@ from .discovery import discover_content
 from .document import Document, Page, Post, TocEntry
 from .errors import AsteriaError, Diagnostics
 from .feed import render_atom, render_rss
+from .i18n_strings import load_theme_i18n, translate
 from .nav import NavEntry, build_nav
 from .pagination import paginate
 from .references import (
@@ -189,6 +190,7 @@ def _build_menu(
     posts: list[Post],
     lang: str,
     diagnostics: Diagnostics,
+    theme_strings: dict[str, dict[str, str]],
 ) -> list[dict[str, str]]:
     """Builds the menu for a single language.
 
@@ -200,6 +202,24 @@ def _build_menu(
     document id instead (e.g. "about.pt") — an escape hatch to pin one
     specific translation regardless of the current language, or to
     reference a document that has no translations at all.
+
+    A menu entry's label, when `title:` isn't set on the entry itself in
+    site.yaml, falls back to the target page's own `menu_title:` front
+    matter field (see document.Document.menu_title) if it has one, and
+    only then to the page's actual `.title` — in that order:
+    `menu: - title:` (site.yaml) > `menu_title:` (document front matter)
+    > `title:` (document front matter). This is what lets a page use a
+    shorter/different label in the menu than its own heading, while
+    still being translatable per document — unlike `menu: - title:`,
+    which is one fixed string for every language, `menu_title:` lives in
+    each translated document's own front matter just like `title:` does.
+
+    The "blog" entry has no document behind it to carry a `menu_title:`,
+    so its default label instead comes from `theme_strings` (the theme's
+    i18n.yaml, see i18n_strings.load_theme_i18n) under the reserved key
+    "blog_menu_label" — falling back to the literal "Blog" when the
+    theme doesn't define that key at all, so this keeps working with
+    zero i18n.yaml setup on a single-language site.
     """
     # "blog" is the one reserved keyword that means "the blog index" in
     # `page:` (here) and `home_page:` (see run_build) — there's no
@@ -216,9 +236,13 @@ def _build_menu(
 
         if page_id in blog_keys:
             url = prefix_lang(config.blog_index_url, lang, config.default_language)
-            # No page object to fall back to for a title here — same
-            # default used by the auto-injected "Blog" entry below.
-            title = title_override or "Blog"
+            # No page object to fall back to for a title here — see
+            # theme_strings in the docstring above, and the auto-injected
+            # "Blog" entry below, which uses the exact same call.
+            title = title_override or translate(
+                theme_strings, "blog_menu_label", lang, config.default_language,
+                fallback="Blog",
+            )
         else:
             # translation_key is checked FIRST, exact id second — see
             # _resolve_page_reference for the full rationale.
@@ -241,15 +265,12 @@ def _build_menu(
                 title = title_override or page_id
             else:
                 url = page.url
-                # Falls back to the resolved page's own title — which is
-                # already the right language's title, since `page` above
-                # was resolved for this specific `lang` — instead of the
-                # raw `page:` string. Mirrors nav._resolve's
-                # `title_override or target.title`, so a menu entry left
-                # without an explicit `title:` shows real text (and the
-                # correct per-language text) instead of the internal
-                # page/translation_key identifier.
-                title = title_override or page.title
+                # title: (menu) > menu_title: (front matter) > title:
+                # (front matter) — see the "A menu entry's label..."
+                # paragraph in the docstring above. `page` was resolved
+                # for this specific `lang`, so both `.menu_title` and
+                # `.title` are already the right language's text.
+                title = title_override or page.menu_title or page.title
         menu_items.append({"title": title, "url": url, "page_id": page_id})
 
     # If there are posts, the blog is not the home page, and the user has not
@@ -262,7 +283,10 @@ def _build_menu(
     ):
         menu_items.append(
             {
-                "title": "Blog",
+                "title": translate(
+                    theme_strings, "blog_menu_label", lang, config.default_language,
+                    fallback="Blog",
+                ),
                 "url": prefix_lang(config.blog_index_url, lang, config.default_language),
                 "page_id": "blog",
             }
@@ -527,10 +551,17 @@ def run_build(
                 source="site.yaml",
             )
 
+    # Loaded here (and again inside templating.create_environment, which
+    # needs its own copy to back the `t()` global) so _build_menu can
+    # translate the "blog" entry's default label — see its docstring.
+    # Re-reading one small YAML file twice per build is cheap enough not
+    # to be worth threading a shared value through the whole pipeline for.
+    theme_strings = load_theme_i18n(config.theme_dir, config.i18n_string_overrides)
+
     menus_by_lang: dict[str, list[dict[str, str]]] = {
         lang: _build_menu(
             config.menu_config, config, pages_by_id,
-            pages_by_translation_key, posts, lang, diagnostics,
+            pages_by_translation_key, posts, lang, diagnostics, theme_strings,
         )
         for lang in config.languages
     }

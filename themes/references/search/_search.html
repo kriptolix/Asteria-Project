@@ -13,10 +13,20 @@
 
 <body>
 
-    <header>
+    <!-- data-search-header lets search.js find the header reliably even
+         if this markup is dropped into a theme whose header isn't a
+         plain <header> element (e.g. a <div class="site-header">). -->
+    <header data-search-header>
 
         <strong>Meu site</strong>
 
+        <!--
+            data-index-url, data-min-length and data-max-results are
+            optional; see the top of search.js for defaults and for the
+            search-index.json shape expected by normalizeEntry().
+            Example:
+            <form id="search-form" role="search" data-index-url="/search-index.json">
+        -->
         <form id="search-form" role="search">
 
             <label for="search-input" class="sr-only">
@@ -50,12 +60,24 @@
         <div
             id="search-window"
             class="search-window"
+            aria-label="Resultados da busca"
         >
 
-            <h2>Resultados</h2>
+            <div class="search-window__header">
+                <h2>Resultados</h2>
+                <button type="button" class="search-window__close" id="search-close">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Fechar</span>
+                </button>
+            </div>
 
-            <p>Resultado de exemplo.</p>
-            <p>Outro resultado.</p>
+            <!-- Updated by search.js. aria-live announces changes to
+                 screen readers without moving focus away from the input,
+                 so the user can keep typing uninterrupted. -->
+            <p id="search-status" class="search-status" role="status" aria-live="polite"></p>
+
+            <!-- Populated by search.js; starts empty. -->
+            <ul id="search-results" class="search-results"></ul>
 
         </div>
 

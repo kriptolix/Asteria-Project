@@ -1,9 +1,3 @@
-{# `menu` is `site.menu`; `current_path` is `canonical_path`, passed in
-   explicitly like everywhere else in this folder. Adds an "active"
-   class via the `menu_item_active` global (already existed, wasn't used
-   by the original inline version of this markup) — a small behavior
-   change from what base.html had inline before, called out separately
-   since it wasn't there previously. #}
 {% macro render_site_menu(menu, current_path) %}
 <nav class="site-menu">
     <ul>
