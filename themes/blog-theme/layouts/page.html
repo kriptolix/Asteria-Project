@@ -1,0 +1,29 @@
+{% extends "layouts/base.html" %}
+{% import "partials/_toc.html" as toc %}
+
+{% block title %}{{ page.title }} — {{ site.title }}{% endblock %}
+{% block description %}{{ page.description or site.description }}{% endblock %}
+
+{% block sidebar %}
+{{ super() }}
+{% if show_toc and page.toc and not show_navigation %}
+<aside class="sidebar-toc">
+    <h2>{{ t("in_this_page", current_lang) }}</h2>
+    {{ toc.render_toc(page.toc) }}
+</aside>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<article class="document">
+    {% if page.cover %}
+    <div class="document__cover">
+        <img src="{{ page.cover }}" alt="">
+    </div>
+    {% endif %}
+    <h1 class="document__title">{{ page.title }}</h1>
+    <div class="document__body">
+        {{ content }}
+    </div>
+</article>
+{% endblock %}

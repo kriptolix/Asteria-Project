@@ -1,0 +1,12 @@
+{# `menu` is `site.menu`; `current_path` is `canonical_path`, passed in
+   explicitly like everywhere else in this folder. `menu_item_active` is
+   an env global (see templating._menu_item_active). #}
+{% macro render_site_menu(menu, current_path) %}
+<nav class="site-menu">
+    <ul>
+        {% for item in menu %}
+        <li><a href="{{ item.url }}" class="{{ 'active' if menu_item_active(item, current_path) else '' }}">{{ item.title }}</a></li>
+        {% endfor %}
+    </ul>
+</nav>
+{% endmacro %}

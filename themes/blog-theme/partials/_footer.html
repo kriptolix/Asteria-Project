@@ -1,0 +1,24 @@
+{% import "partials/_social_links.html" as social %}
+
+{# Site-wide footer. Takes `site` directly (not individual fields) so
+   this stays copy-pasteable into another theme as-is — every theme's
+   `site` object has the same shape (templating.SiteView).
+
+   `year` is a plain macro argument, not computed automatically: there's
+   no build-time "now" exposed to templates, so a caller either passes
+   its own value in (`render_footer(site, year=2027)`) or this default
+   is edited by hand once a year. #}
+{% macro render_footer(site, year=2026) %}
+<footer class="site-footer">
+    <div class="footer-elements">
+        <div class="footer-info">
+            <div>{{ year }} &copy; {{ site.title }}</div>
+            <div>
+                {{ t("made_with", site.language) }}
+                <a href="https://github.com/kriptolix/Asteria-Project">Asteria</a>
+            </div>
+        </div>
+        {{ social.render_social_links(site.social) }}
+    </div>
+</footer>
+{% endmacro %}

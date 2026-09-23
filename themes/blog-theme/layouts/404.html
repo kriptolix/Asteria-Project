@@ -1,0 +1,14 @@
+{% extends "layouts/base.html" %}
+
+{# NOTE: this template's context (build.run_build) has no `page` and no
+   `lang` at all — only site/theme/theme_css/canonical_path/og_type/
+   show_navigation/breadcrumbs. Use `current_lang`. #}
+
+{% block title %}{{ t("page_not_found", current_lang) }} — {{ site.title }}{% endblock %}
+
+{% block content %}
+<section class="not-found">
+    <h1 class="document__title">{{ t("page_not_found", current_lang) }}</h1>
+    <p><a href="/">{{ t("back_to_home", current_lang) }}</a></p>
+</section>
+{% endblock %}

@@ -1,0 +1,26 @@
+{% extends "layouts/base.html" %}
+
+{# NOTE: this template's context (build._write_taxonomy) has no `page`
+   and no `lang` — only what's listed there. Use `current_lang` (set in
+   layouts/base.html, falls back to site.default_language) for anything
+   that needs a language. #}
+
+{% block title %}{{ kind_label }} — {{ site.title }}{% endblock %}
+
+{% block content %}
+<section class="taxonomy-index">
+    <h1 class="document__title">{{ kind_label }}</h1>
+    {% if terms %}
+    <ul class="term-list">
+        {% for term in terms %}
+        <li>
+            <a href="{{ term.url }}">{{ term.name }}</a>
+            <span class="term-count">({{ term.posts|length }})</span>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p>{{ t("taxonomy_empty", current_lang) }}</p>
+    {% endif %}
+</section>
+{% endblock %}

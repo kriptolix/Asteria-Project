@@ -2,8 +2,16 @@
 {% import "partials/_footer.html" as footer %}
 {% import "partials/_header.html" as header %}
 {% import "partials/_breadcrumbs.html" as breadcrumbsmacros %}
+
 {% set current_lang = lang if lang is defined else site.default_language %}
+
+{# `page` only exists in the context of an individual document
+   (layouts/page.html, layouts/post.html — see build._document_context).
+   layouts/blog.html, taxonomy_index.html, taxonomy_term.html and 404.html
+   never define it, and always pass show_navigation=False, so this stays
+   safe: the `page.toc` branch is only ever reached when `page` exists. #}
 {% set has_sidebar = (show_navigation is defined and show_navigation) or (show_toc is defined and show_toc and page.toc) %}
+
 <!doctype html>
 <html lang="{{ current_lang }}">
 
@@ -13,10 +21,12 @@
     <title>{% block title %}{{ site.title }}{% endblock %}</title>
     <meta name="description" content="{% block description %}{{ site.description }}{% endblock %}">
     <link rel="canonical" href="{{ site.url }}{{ canonical_path }}">
-    <link rel="stylesheet" href="{{ asset('/css/light.css') }}">
-    {% if theme_css == 'dark' %}
-    <link rel="stylesheet" href="{{ asset('/css/dark.css') }}">
-    {% endif %}
+
+    {# The variant name (theme.default_variant, or a per-document
+       `variant:` front matter override) maps directly to a stylesheet
+       file: css/<variant>.css. Ship a matching file under static/css/
+       for every variant referenced anywhere in the site. #}
+    <link rel="stylesheet" href="{{ asset('/css/' ~ theme_css ~ '.css') }}">
 
     <meta property="og:site_name" content="{{ site.title }}">
     <meta property="og:type" content="{{ og_type or 'website' }}">
@@ -43,19 +53,19 @@
 </head>
 
 <body>
-    {{ header.render_header(site, canonical_path) }}
+    {{ header.render_header(site, canonical_path, current_lang) }}
 
     <div class="site-layout">
         {% if has_sidebar %}
         <div class="sidebar-column" id="sidebar-drawer">
             <button type="button" class="drawer__close" id="sidebar-close">
                 <span aria-hidden="true">&times;</span>
-                <span class="sr-only">{{ t("close", page.lang) }}</span>
+                <span class="sr-only">{{ t("close", current_lang) }}</span>
             </button>
             {% block sidebar %}
             {% if show_navigation %}
             <aside class="sidebar-nav">
-                <h2>{{ t("navigation", page.lang) }}</h2>
+                <h2>{{ t("navigation", current_lang) }}</h2>
                 {{ navmacros.render_nav(site.nav, canonical_path, site.tocs) }}
             </aside>
             {% endif %}
@@ -68,7 +78,7 @@
             {% if has_sidebar %}
             <button type="button" class="sidebar-toggle" id="sidebar-toggle" aria-expanded="false"
                 aria-controls="sidebar-drawer">
-                <span aria-hidden="true">&#9776;</span> {{ t("nav_toc_sections", site.language) }}
+                <span aria-hidden="true">&#9776;</span> {{ t("sections", current_lang) }}
             </button>
             {% endif %}
             {% block content %}{% endblock %}

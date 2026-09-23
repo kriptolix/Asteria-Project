@@ -1,0 +1,29 @@
+# Required by the core (accessed via theme_ns["sidebar_toc"] /
+# theme_ns["default_variant"] in build.py — must always be present).
+
+# Site-wide default for the sidebar (page nav / table of contents).
+# Individual documents can still opt out via `navigation: false` /
+# `toc: false` in their own front matter.
+sidebar_toc: true
+
+# Default CSS variant. Maps directly to a stylesheet file name:
+# static/css/<default_variant>.css. A document can override this per
+# page via `variant:` in its front matter (see layouts/base.html).
+default_variant: light
+
+# -- Theme-specific params (this theme's own "escape hatch" keys,
+#    overridable per-site via site.yaml's theme.params) -----------------
+
+# Shows the most recent entry from site.featured_posts as a large
+# banner above the regular listing, but only on the first page of the
+# blog index (pagination.number == 1).
+hero_enabled: true
+
+# How many entries from site.featured_posts to show in the hero. Only
+# the most recent one is used as the large banner; the rest (if any)
+# are listed as smaller links beside it.
+hero_featured_count: 3
+
+# Shows the post author (when set in front matter) next to the date on
+# cards and on the post page itself.
+show_author: true

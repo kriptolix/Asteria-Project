@@ -1,0 +1,753 @@
+:root {
+  /* Dark variant: same tokens as light.css, different values. Every
+     other rule in this file is identical to light.css — only these
+     custom properties (and the two overrides right below, for things
+     that need more than a color swap) differ between variants. */
+  --color-bg: #14161a;
+  --color-text: #e8e8ea;
+  --color-accent: #6d8bff;
+  --color-muted: #9a9ba3;
+  --color-tag-bg: #1f2330;
+  --color-nav-border: #2a2d35;
+
+  --max-width: 1080px;
+  --content-max-width: 720px;
+
+  --font-body: system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  color: var(--color-text);
+  background: var(--color-bg);
+  line-height: 1.6;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Locks page scroll while a drawer (mobile menu / sidebar) is open. */
+body.drawer-open {
+  overflow: hidden;
+}
+
+/* Accessibility utility: visually hidden, still readable by screen
+   readers. Used on the labels of icon-only drawer buttons. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ==========================================================================
+   Header
+   ========================================================================== */
+
+.site-header__inner {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.site-title {
+  font-weight: 700;
+  font-size: 1.25rem;
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.site-menu ul {
+  list-style: none;
+  display: flex;
+  gap: 1.25rem;
+  margin: 0;
+  padding: 0;
+}
+
+.site-menu a {
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.site-menu a:hover { color: var(--color-accent); }
+
+.site-menu-drawer {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.lang-switcher ul {
+  display: flex;
+  gap: 0.75rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.lang-switcher a,
+.lang-switcher__current {
+  color: var(--color-text);
+  text-decoration: none;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+}
+
+.lang-switcher a:hover { color: var(--color-accent); }
+
+.lang-switcher__current {
+  font-weight: 700;
+  color: var(--color-accent);
+}
+
+.menu-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.menu-toggle:hover { color: var(--color-accent); }
+
+.menu-toggle__icon {
+  width: 24px;
+  height: 24px;
+}
+
+.sidebar-toggle {
+  display: none;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--color-nav-border);
+  border-radius: 6px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.sidebar-toggle:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.drawer__close {
+  display: none;
+  align-self: flex-end;
+  border: 0;
+  background: none;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--color-muted);
+  padding: 0.25rem;
+}
+
+.drawer__close:hover { color: var(--color-accent); }
+
+.drawer__overlay {
+  background: rgb(0 0 0 / 45%);
+}
+
+.drawer__overlay[hidden] { display: none; }
+
+/* ==========================================================================
+   Layout
+   ========================================================================== */
+
+.site-layout {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 1.5rem;
+  display: flex;
+  gap: 2.5rem;
+  align-items: flex-start;
+}
+
+.site-content {
+  flex: 1;
+  min-width: 0;
+  max-width: var(--content-max-width);
+}
+
+/* The blog index and taxonomy listings use the full width, unlike a
+   single document (post/page), which reads better constrained to
+   --content-max-width. */
+.blog-index,
+.taxonomy-index,
+.taxonomy-term {
+  max-width: none;
+}
+
+.sidebar-column {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  flex-shrink: 0;
+}
+
+.sidebar-toc {
+  width: 220px;
+  flex-shrink: 0;
+  font-size: 0.9rem;
+  position: sticky;
+  top: 1rem;
+}
+
+.sidebar-toc h2 {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-muted);
+}
+
+.sidebar-toc ul {
+  list-style: none;
+  padding-left: 0.75rem;
+  margin: 0;
+}
+
+.sidebar-toc > ul { padding-left: 0; }
+
+.sidebar-toc a {
+  color: var(--color-text);
+  text-decoration: none;
+  display: block;
+  padding: 0.15rem 0;
+}
+
+.sidebar-toc a:hover { color: var(--color-accent); }
+
+.sidebar-nav {
+  width: 240px;
+  flex-shrink: 0;
+  font-size: 0.9rem;
+}
+
+.sidebar-nav h2 {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-muted);
+}
+
+.sidebar-nav ul {
+  list-style: none;
+  padding-left: 0.9rem;
+  margin: 0;
+}
+
+.sidebar-nav > ul { padding-left: 0; }
+
+.sidebar-nav a, .sidebar-nav .nav-section {
+  display: block;
+  padding: 0.2rem 0;
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.sidebar-nav .nav-section {
+  color: var(--color-muted);
+  font-weight: 600;
+}
+
+.sidebar-nav a:hover { color: var(--color-accent); }
+
+.sidebar-nav li.active > a {
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+.sidebar-nav details { margin: 0; }
+
+.sidebar-nav summary {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  padding: 0.2rem 0;
+  list-style: none;
+}
+
+.sidebar-nav summary::-webkit-details-marker { display: none; }
+
+.sidebar-nav summary::before {
+  content: "▸";
+  display: inline-block;
+  margin-right: 0.35rem;
+  font-size: 0.7em;
+  color: var(--color-muted);
+  transition: transform 0.15s ease;
+}
+
+.sidebar-nav details[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.sidebar-nav summary a {
+  display: inline;
+  padding: 0;
+}
+
+.sidebar-nav .nav-section-title {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.breadcrumbs {
+  font-size: 0.85rem;
+  color: var(--color-muted);
+  margin-bottom: 1.25rem;
+}
+
+.breadcrumbs a { color: var(--color-muted); }
+.breadcrumbs__sep { margin: 0 0.4rem; }
+.breadcrumbs__current { color: var(--color-text); }
+
+/* ==========================================================================
+   Hero (blog index, first page — see partials/_hero.html)
+   ========================================================================== */
+
+.hero {
+  display: flex;
+  gap: 2rem;
+  margin-bottom: 2.5rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid var(--color-nav-border);
+}
+
+.hero__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.hero__media {
+  aspect-ratio: 21 / 9;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--color-tag-bg);
+}
+
+.hero__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.hero__eyebrow {
+  margin: 0;
+  color: var(--color-accent);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.hero__title {
+  margin: 0;
+  font-size: 1.9rem;
+  line-height: 1.25;
+}
+
+.hero__title a {
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.hero__title a:hover { color: var(--color-accent); }
+
+.hero__meta {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}
+
+.hero__excerpt {
+  margin: 0;
+  color: var(--color-muted);
+}
+
+.hero__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  width: 220px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  border-left: 1px solid var(--color-nav-border);
+  padding-left: 1.5rem;
+}
+
+.hero__list a {
+  color: var(--color-text);
+  text-decoration: none;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.hero__list a:hover { color: var(--color-accent); }
+
+/* ==========================================================================
+   Card and card grid (see partials/_card.html, partials/_grid.html)
+   ========================================================================== */
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--card-grid-columns, 3), 1fr);
+  gap: 1.5rem;
+}
+
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-nav-border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--color-bg);
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.card:hover {
+  border-color: var(--color-accent);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 35%);
+}
+
+/* Visible focus ring: the card has overflow:hidden for its rounded
+   corners, so a plain :focus outline on the link would get clipped.
+   Draw the ring on the whole card instead, and hide the native one. */
+.card:focus-within {
+  box-shadow: 0 0 0 3px var(--color-accent);
+}
+
+.card__title a:focus-visible {
+  outline: none;
+}
+
+.card__media {
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: var(--color-tag-bg);
+}
+
+.card__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1.1rem 1.25rem 1.25rem;
+  flex: 1;
+}
+
+.card__title {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.35;
+}
+
+.card__title a {
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+/* "Stretched link": the whole card is clickable through a single real
+   link (the title's), instead of duplicating a second link on the
+   cover image. */
+.card__title a::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.card:hover .card__title a { color: var(--color-accent); }
+
+.card__meta {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.85rem;
+}
+
+.card__excerpt {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.92rem;
+  /* Clamp to 3 lines so cards in the same row don't end up with
+     different heights just because one excerpt is much longer. */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.card__tags {
+  margin: 0.25rem 0 0;
+}
+
+/* Sits above the title's stretched link, otherwise the tag/category
+   links would be unreachable underneath it. */
+.card__tags a {
+  position: relative;
+  z-index: 1;
+}
+
+/* ==========================================================================
+   Document (post / page)
+   ========================================================================== */
+
+.document__cover {
+  aspect-ratio: 21 / 9;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--color-tag-bg);
+  margin-bottom: 1.5rem;
+}
+
+.document__cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.document__title {
+  font-size: 2rem;
+  line-height: 1.2;
+  margin: 0 0 0.5rem;
+}
+
+.document__meta {
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}
+
+.document__body {
+  font-size: 1.05rem;
+}
+
+.document__body img,
+.document__body video {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+}
+
+.document__body pre {
+  overflow-x: auto;
+  padding: 1rem;
+  border-radius: 6px;
+  background: var(--color-tag-bg);
+}
+
+.document__body table {
+  display: block;
+  overflow-x: auto;
+  max-width: 100%;
+  border-collapse: collapse;
+}
+
+.document__body iframe {
+  max-width: 100%;
+}
+
+.tag, .category,
+a.tag, a.category {
+  display: inline-block;
+  background: var(--color-tag-bg);
+  color: var(--color-accent);
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  margin-right: 0.4rem;
+  text-decoration: none;
+}
+
+.post-nav {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-nav-border);
+  font-size: 0.9rem;
+}
+
+/* ==========================================================================
+   Taxonomy listings, pagination
+   ========================================================================== */
+
+.term-list { list-style: none; padding: 0; }
+.term-count { color: var(--color-muted); font-size: 0.85rem; }
+
+.pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 2.5rem;
+  font-size: 0.9rem;
+}
+
+/* ==========================================================================
+   Footer
+   ========================================================================== */
+
+.site-footer {
+  text-align: center;
+  color: var(--color-muted);
+  padding: 2rem 1rem;
+  font-size: 0.85rem;
+  margin-top: auto;
+}
+
+.social-links {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+  margin-top: 0.25rem;
+}
+
+.social-link {
+  color: var(--color-muted);
+  display: inline-flex;
+  transition: color 0.15s ease;
+}
+
+.social-link img {
+  width: 24px;
+  height: 24px;
+  display: block;
+}
+
+.social-link:hover { color: var(--color-accent); }
+
+/* ==========================================================================
+   Responsive
+   ========================================================================== */
+
+@media (max-width: 900px) {
+  .site-layout { flex-direction: column; }
+  .site-content { max-width: none; }
+
+  .hero { flex-direction: column; }
+
+  .hero__list {
+    width: auto;
+    flex-direction: row;
+    flex-wrap: wrap;
+    border-left: 0;
+    padding-left: 0;
+    border-top: 1px solid var(--color-nav-border);
+    padding-top: 1rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .card-grid { grid-template-columns: repeat(2, 1fr); gap: 1.25rem; }
+
+  .site-header__inner { padding: 1rem; }
+
+  .menu-toggle { display: flex; }
+
+  .site-menu-drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(80vw, 300px);
+    background: var(--color-bg);
+    box-shadow: -4px 0 12px rgb(0 0 0 / 45%);
+    padding: 1rem 1.25rem;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1.5rem;
+    transform: translateX(100%);
+    transition: transform 0.25s ease;
+    z-index: 50;
+    overflow-y: auto;
+  }
+
+  .site-menu-drawer.is-open { transform: translateX(0); }
+  .site-menu-drawer .drawer__close { display: block; }
+
+  .site-menu ul { flex-direction: column; gap: 0.25rem; }
+  .site-menu a { display: block; padding: 0.4rem 0; }
+  .lang-switcher ul { flex-direction: column; gap: 0.4rem; }
+
+  #menu-overlay { position: fixed; inset: 0; z-index: 40; }
+
+  .sidebar-toggle { display: inline-flex; }
+
+  .sidebar-column {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: min(85vw, 300px);
+    background: var(--color-bg);
+    box-shadow: 4px 0 12px rgb(0 0 0 / 45%);
+    padding: 1rem 1.25rem;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    z-index: 50;
+    overflow-y: auto;
+  }
+
+  .sidebar-column.is-open { transform: translateX(0); }
+  .sidebar-column .drawer__close { display: block; }
+
+  .sidebar-nav, .sidebar-toc { width: auto; position: static; }
+
+  #sidebar-overlay { position: fixed; inset: 0; z-index: 40; }
+}
+
+@media (max-width: 480px) {
+  .card-grid { grid-template-columns: 1fr; }
+
+  .site-title { font-size: 1.1rem; }
+
+  .hero__title { font-size: 1.5rem; }
+
+  .post-nav {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .pagination {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+}

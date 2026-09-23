@@ -16,14 +16,14 @@
         {% endfor %}
     </ul>
     {% else %}   
-    <p>{{ t("posts_empty", page.lang) }}</p>
+    <p>{{ t("posts_empty", site.language) }}</p>
     {% endif %}
 
     {% if pagination.total_pages > 1 %}
     <nav class="pagination">
-        {% if pagination.prev_url %}<a href="{{ pagination.prev_url }}">&larr; {{ t("posts_newest", page.lang) }}</a>{% endif %}
-        <span class="pagination__status">{{ t("pagination_status", page.lang, number=pagination.number, total_pages=pagination.total_pages) }}</span>
-        {% if pagination.next_url %}<a href="{{ pagination.next_url }}">{{ t("posts_oldest", page.lang) }} &rarr;</a>{% endif %}
+        {% if pagination.prev_url %}<a href="{{ pagination.prev_url }}">&larr; {{ t("posts_newest", site.language) }}</a>{% endif %}
+        <span class="pagination__status">{{ t("pagination_status", site.language, number=pagination.number, total_pages=pagination.total_pages) }}</span>
+        {% if pagination.next_url %}<a href="{{ pagination.next_url }}">{{ t("posts_oldest", site.language) }} &rarr;</a>{% endif %}
     </nav>
     {% endif %}
 </section>

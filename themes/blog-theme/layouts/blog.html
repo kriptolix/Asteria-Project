@@ -1,0 +1,46 @@
+{% extends "layouts/base.html" %}
+{% import "partials/_hero.html" as heromacros %}
+{% import "partials/_grid.html" as gridmacros %}
+
+{# NOTE: this template's context (build.run_build, the blog index loop)
+   never includes `page`/`post` — only `lang` (a plain string). Every
+   reference to the current language below uses `lang`, not `page.lang`. #}
+
+{% block title %}{{ t("blog", lang) }} — {{ site.title }}{% endblock %}
+
+{% block content %}
+<section class="blog-index">
+
+    {% set show_hero = theme.hero_enabled and pagination.number == 1 %}
+    {% set hero_items = site.featured_posts[:theme.hero_featured_count] if show_hero else [] %}
+
+    {% if hero_items %}
+    {{ heromacros.render_hero(site.featured_posts, site, lang, theme.hero_featured_count) }}
+    {% endif %}
+
+    {# Posts already shown in the hero are left out of the grid below,
+       so a featured post doesn't appear twice on the same page. #}
+    {% set hero_urls = hero_items | map(attribute="url") | list %}
+    {% set grid_posts = (posts | rejectattr("url", "in", hero_urls) | list) if hero_urls else posts %}
+
+    {{ gridmacros.render_grid(
+        grid_posts, site, lang,
+        columns=3,
+        show_author=theme.show_author,
+        empty_message=t("posts_empty", lang)
+    ) }}
+
+    {% if pagination.total_pages > 1 %}
+    <nav class="pagination" aria-label="{{ t('pagination', lang) }}">
+        {% if pagination.prev_url %}
+        <a href="{{ pagination.prev_url }}">&larr; {{ t("posts_newest", lang) }}</a>
+        {% endif %}
+        <span class="pagination__status">{{ t("pagination_status", lang, number=pagination.number, total_pages=pagination.total_pages) }}</span>
+        {% if pagination.next_url %}
+        <a href="{{ pagination.next_url }}">{{ t("posts_oldest", lang) }} &rarr;</a>
+        {% endif %}
+    </nav>
+    {% endif %}
+
+</section>
+{% endblock %}

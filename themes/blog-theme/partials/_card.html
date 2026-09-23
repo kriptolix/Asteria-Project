@@ -1,0 +1,76 @@
+{# Generic content card. `item` can be a post, a page, or any object/dict
+   exposing at least `title` and `url` — every other field is optional
+   and simply skipped when falsy, so the same macro works for posts,
+   pages, or a hand-authored list of dicts alike.
+
+   Parameters:
+     item          -> see the fields below
+     site           -> the current `site` view. Only used to resolve
+                        item.tags/item.categories (plain strings) to
+                        their real URLs via site.tags/site.categories
+                        (lists of Term, already built with whatever
+                        `urls.tags`/`urls.categories` pattern the site
+                        configured — see config.SiteConfig.url_patterns).
+                        This deliberately does NOT guess a URL pattern.
+     lang            -> language used for the format_date filter when
+                         `item.lang` is falsy. Passed explicitly rather
+                         than read off an ambient `page`/`post`, because
+                         this macro is called from templates where no
+                         such variable exists at all (layouts/blog.html,
+                         layouts/taxonomy_term.html) — see the note in
+                         layouts/base.html about `page` not being global.
+     show_author      -> whether to render item.author next to the date.
+                          Callers typically pass `theme.show_author`.
+
+   Fields read from `item` (all but title/url are optional):
+     item.title                    -> card heading, and the card's link text
+     item.url                       -> link target for the whole card
+     item.cover                      -> cover image URL (this is the
+                                        confirmed front matter field name
+                                        — see frontmatter.Frontmatter.cover)
+     item.date                        -> passed through format_date
+     item.lang                         -> overrides the `lang` parameter above
+     item.author                        -> shown next to the date, if show_author
+     item.excerpt                        -> short summary text (CSS clamps it to 3 lines)
+     item.tags / item.categories           -> resolved against site.tags/site.categories
+
+   The whole card is clickable via a "stretched link" on the title
+   (see .card__title a::after in the stylesheet) rather than wrapping
+   the cover image in a second, redundant link.
+#}
+{% macro render_card(item, site, lang, show_author=true) %}
+<article class="card">
+    {% if item.cover %}
+    <div class="card__media">
+        <img src="{{ item.cover }}" alt="" loading="lazy">
+    </div>
+    {% endif %}
+    <div class="card__body">
+        <h3 class="card__title"><a href="{{ item.url }}">{{ item.title }}</a></h3>
+        {% if item.date or (show_author and item.author) %}
+        <p class="card__meta">
+            {% if item.date %}<time>{{ item.date | format_date(item.lang or lang, "short") }}</time>{% endif %}
+            {% if item.date and show_author and item.author %} &middot; {% endif %}
+            {% if show_author and item.author %}{{ item.author }}{% endif %}
+        </p>
+        {% endif %}
+        {% if item.excerpt %}
+        <p class="card__excerpt">{{ item.excerpt }}</p>
+        {% endif %}
+        {% if item.tags or item.categories %}
+        <p class="card__tags">
+            {% for tag in item.tags %}
+            {% set matches = site.tags | selectattr("name", "equalto", tag) | list %}
+            {% if matches %}<a class="tag" href="{{ matches[0].url }}">{{ tag }}</a>
+            {% else %}<span class="tag">{{ tag }}</span>{% endif %}
+            {% endfor %}
+            {% for cat in item.categories %}
+            {% set matches = site.categories | selectattr("name", "equalto", cat) | list %}
+            {% if matches %}<a class="category" href="{{ matches[0].url }}">{{ cat }}</a>
+            {% else %}<span class="category">{{ cat }}</span>{% endif %}
+            {% endfor %}
+        </p>
+        {% endif %}
+    </div>
+</article>
+{% endmacro %}

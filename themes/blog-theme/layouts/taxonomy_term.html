@@ -1,0 +1,19 @@
+{% extends "layouts/base.html" %}
+{% import "partials/_grid.html" as gridmacros %}
+
+{# NOTE: same as taxonomy_index.html — no `page`, no `lang` in this
+   context. Use `current_lang`. #}
+
+{% block title %}{{ term.name }} — {{ kind_label }} — {{ site.title }}{% endblock %}
+
+{% block content %}
+<section class="taxonomy-term">
+    <h1 class="document__title">{{ kind_label }}: {{ term.name }}</h1>
+    {{ gridmacros.render_grid(
+        posts, site, current_lang,
+        columns=3,
+        show_author=theme.show_author,
+        empty_message=t("posts_empty", current_lang)
+    ) }}
+</section>
+{% endblock %}

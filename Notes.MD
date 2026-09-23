@@ -2,13 +2,11 @@
 <iframe src="https://example.com/map" width="600" height="400"></iframe>
 :::
 
-problemas do odt2web
-.
-<span class="odt-char-t2">eu </span>
+
 
 ##
 
-adicionar menu title ao front matter, isso vai permitir remover title
+o toc embutido no nav nao leva pra pagina quando clicado, o nav precisa gerar seu próprio toc
 
 
 ##

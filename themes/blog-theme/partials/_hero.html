@@ -1,0 +1,42 @@
+{# Hero banner for the first page of the blog index, built from
+   site.featured_posts — posts marked `featured: true` in their front
+   matter (see frontmatter.Frontmatter.featured and
+   build._document_context / build.run_build). Renders nothing if
+   there are no featured posts.
+
+   The most recent featured post becomes a large banner (cover image,
+   title, date, excerpt); any additional ones (up to `count`) are
+   listed as small links beside it. #}
+{% macro render_hero(featured_posts, site, lang, count=3) %}
+{% if featured_posts %}
+{% set items = featured_posts[:count] %}
+{% set main = items[0] %}
+<section class="hero" aria-label="{{ t('featured', lang) }}">
+    <article class="hero__main">
+        {% if main.cover %}
+        <div class="hero__media">
+            <img src="{{ main.cover }}" alt="" loading="eager">
+        </div>
+        {% endif %}
+        <div class="hero__body">
+            <p class="hero__eyebrow">{{ t("featured", lang) }}</p>
+            <h2 class="hero__title"><a href="{{ main.url }}">{{ main.title }}</a></h2>
+            {% if main.date %}
+            <p class="hero__meta"><time>{{ main.date | format_date(main.lang or lang, "short") }}</time></p>
+            {% endif %}
+            {% if main.excerpt %}
+            <p class="hero__excerpt">{{ main.excerpt }}</p>
+            {% endif %}
+        </div>
+    </article>
+
+    {% if items|length > 1 %}
+    <ul class="hero__list">
+        {% for item in items[1:] %}
+        <li><a href="{{ item.url }}">{{ item.title }}</a></li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+</section>
+{% endif %}
+{% endmacro %}
