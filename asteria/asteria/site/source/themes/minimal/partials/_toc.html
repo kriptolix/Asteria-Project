@@ -1,9 +1,9 @@
-{% macro render_toc(entries) %}
+{% macro render_toc(entries, base="") %}
 <ul>
     {% for entry in entries %}
     <li>
-        <a href="#{{ entry.id }}">{{ entry.title }}</a>
-        {% if entry.children %}{{ render_toc(entry.children) }}{% endif %}
+        <a href="{{ base }}#{{ entry.id }}">{{ entry.title }}</a>
+        {% if entry.children %}{{ render_toc(entry.children, base) }}{% endif %}
     </li>
     {% endfor %}
 </ul>

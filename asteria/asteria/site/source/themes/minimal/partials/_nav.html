@@ -12,7 +12,7 @@
         <details{% if nav_branch_active(entry, current_path) %} open{% endif %}>
             <summary>{% if entry.url %}<a href="{{ entry.url }}">{{ entry.title }}</a>{% else %}<span class="nav-section-title">{{ entry.title }}</span>{% endif %}</summary>
             {% if toc_items %}
-            {{ toc.render_toc(toc_items) }}
+            {{ toc.render_toc(toc_items, entry.url) }}
             {% endif %}
             {% if entry.children %}
             {{ render_nav(entry.children, current_path, tocs) }}
