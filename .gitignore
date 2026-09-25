@@ -2,4 +2,5 @@ __pycache__/
 *.pyc
 *.egg-info/
 my-site/
+titulo-mutante/
 .pytest_cache/

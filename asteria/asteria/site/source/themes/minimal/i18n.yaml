@@ -12,6 +12,8 @@ pt-BR:
   navigation: "Navegação"
   made_with: "Feito com"
   blog_menu_label: "Artigos"
+  tags_label: "Tags"
+  categories_label: "Categorias"
   close_button: "Fechar"
   nav_toc_sections: "Sessões"
 
@@ -29,6 +31,8 @@ en:
   navigation: "Navigation"
   made_with: "Made with"
   blog_menu_label: "Articles"
+  tags_label: "Tags"
+  categories_label: "Categories"
   close_button: "Close"
   nav_toc_sections: "sections"
 

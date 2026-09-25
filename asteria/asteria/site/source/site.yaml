@@ -10,7 +10,7 @@ theme:
 
 menu:
   - page: "welcome"
-    title: "Start"
+  - page: "blog"
 
 social:
   - platform: email
