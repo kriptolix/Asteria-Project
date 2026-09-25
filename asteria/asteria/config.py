@@ -5,6 +5,7 @@ Reads SSG configurations from `site.yaml` and merges them with the defaults.
 from __future__ import annotations
 
 import re
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -12,6 +13,14 @@ from typing import Any
 import yaml
 
 from .errors import AsteriaError
+
+# The "minimal" theme shipped with asteria itself (asteria/site/source/
+# themes/minimal, relative to this file's own package directory) — the
+# fallback SiteConfig.theme_dir uses when a project doesn't have its own
+# copy yet, and the source reset_theme() copies back over a project's
+# copy when it's been broken by local edits. Both need the exact same
+# path, so it's computed once, here.
+_BUNDLED_MINIMAL_THEME_DIR = Path(__file__).parent / "site" / "source" / "themes" / "minimal"
 
 DEFAULTS: dict[str, Any] = {
     "site": {
@@ -155,8 +164,7 @@ class SiteConfig:
         if self._configured_theme_dir.exists():
             return self._configured_theme_dir
 
-        bundled_theme = Path(__file__).parent / "site" / "source" / "themes" / "minimal"
-        return bundled_theme
+        return _BUNDLED_MINIMAL_THEME_DIR
 
     @property
     def theme_source(self) -> str:
@@ -275,3 +283,20 @@ def load_config(config_path: Path) -> SiteConfig:
 
     merged = deep_merge(DEFAULTS, raw)
     return SiteConfig(data=merged, root=config_path.parent.resolve())
+
+
+def reset_theme(project_root: Path) -> Path:
+    """Restores the bundled "minimal" theme to
+    `<project_root>/source/themes/minimal`, overwriting any local edits
+    to files the bundled theme also ships. Creates `source/themes/`
+    (and `source/`, if somehow missing) when it doesn't exist yet.
+    """
+    if not _BUNDLED_MINIMAL_THEME_DIR.exists():
+        raise AsteriaError(
+            f"Bundled theme not found at {_BUNDLED_MINIMAL_THEME_DIR} "
+            "— the asteria installation looks broken."
+        )
+
+    destination = project_root / "source" / "themes" / "minimal"
+    shutil.copytree(_BUNDLED_MINIMAL_THEME_DIR, destination, dirs_exist_ok=True)
+    return destination

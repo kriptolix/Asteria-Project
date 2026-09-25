@@ -116,6 +116,16 @@ class Document:
         return self.frontmatter.menu_title
 
     @property
+    def nav_title(self) -> str | None:
+        """`nav_title:` front matter field — alternate label to use in
+        `nav:` (site.yaml) when this document's own title isn't the
+        ideal link text. Same role as `menu_title`, but for `nav:`
+        instead of `menu:` — see nav._resolve, where the priority order
+        is: this nav entry's own explicit title > this document's
+        `nav_title:` > this document's `title:`."""
+        return self.frontmatter.nav_title
+
+    @property
     def template(self) -> str | None:
         """Nome do arquivo de template do tema (ex: 'wiki.html') a usar
         na renderização deste documento, vindo de `template:` no front

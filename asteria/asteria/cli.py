@@ -10,7 +10,7 @@ from pathlib import Path
 
 from .build import run_build
 from .cache import clear_cache
-from .config import load_config
+from .config import load_config, reset_theme
 from .errors import AsteriaError
 from .scaffold import create_project
 from .server import serve as run_serve
@@ -95,6 +95,28 @@ def _cmd_check(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_reset_theme(args: argparse.Namespace) -> int:
+    project_root = Path(args.project).resolve()
+
+    if not args.yes:
+        answer = input(
+            "This overwrites any local edits to source/themes/minimal "
+            "with the bundled theme. Continue? [y/N] "
+        )
+        if answer.strip().lower() not in ("y", "yes"):
+            print("Aborted; nothing was changed.")
+            return 1
+
+    try:
+        destination = reset_theme(project_root)
+    except AsteriaError as exc:
+        print(f"FATAL ERROR: {exc}", file=sys.stderr)
+        return 1
+
+    print(f"Bundled theme restored to {destination}")
+    return 0
+
+
 def _cmd_new(args: argparse.Namespace) -> int:
     target_dir = Path(args.path).resolve()
     try:
@@ -154,6 +176,18 @@ def build_parser() -> argparse.ArgumentParser:
     )
     check_p.add_argument("--converter", default="auto", choices=converter_choices, help=converter_help)
     check_p.set_defaults(func=_cmd_check)
+
+    reset_theme_p = subparsers.add_parser(
+        "reset-theme",
+        help="Restores the bundled 'minimal' theme (source/themes/minimal), "
+        "overwriting local edits to it.",
+    )
+    reset_theme_p.add_argument(
+        "--yes",
+        action="store_true",
+        help="Skip the confirmation prompt (for non-interactive use).",
+    )
+    reset_theme_p.set_defaults(func=_cmd_reset_theme)
 
     new_p = subparsers.add_parser("new", help="Create a new Asteria project")
     new_p.add_argument(

@@ -26,6 +26,7 @@ KNOWN_FIELDS = {
     "featured",
     "cover",
     "menu_title",
+    "nav_title",
 }
 
 FRONTMATTER_BLOCK_RE = re.compile(
@@ -75,6 +76,15 @@ class Frontmatter:
     # documento > title: do documento. None quando não informado — ver
     # document.Document.menu_title.
     menu_title: str | None = None
+    # Alternate label to use when this document is referenced by a `nav:`
+    # entry (site.yaml) WITHOUT an explicit override title. Mirrors
+    # `menu_title` above, but for `nav:` instead of `menu:` — same
+    # priority chain (nav entry's own title > nav_title: > title:) and
+    # same rationale: living in front matter makes it translatable per
+    # document, instead of a single fixed string hardcoded in site.yaml's
+    # `nav:` (which can't vary per language). None when not informed —
+    # see document.Document.nav_title and nav._resolve.
+    nav_title: str | None = None
     extra: dict[str, str] = field(default_factory=dict)
 
     def get(self, key: str, default=None):
@@ -131,6 +141,7 @@ def extract_frontmatter(
         featured=_parse_bool(raw_fields.get("featured"), default=False),
         cover=raw_fields.get("cover") or None,
         menu_title=raw_fields.get("menu_title") or None,
+        nav_title=raw_fields.get("nav_title") or None,
         extra={k: v for k, v in raw_fields.items() if k not in KNOWN_FIELDS},
     )
 
