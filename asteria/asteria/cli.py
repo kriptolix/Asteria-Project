@@ -8,19 +8,21 @@ import argparse
 import sys
 from pathlib import Path
 
-from .build import run_build
-from .cache import clear_cache
-from .config import load_config, reset_theme
+from .api import (
+    build_project,
+    check_project,
+    clean_project,
+    create_new_project,
+    reset_project_theme,
+)
 from .errors import AsteriaError
-from .scaffold import create_project
 from .server import serve as run_serve
-from .writer import clean_output
 
 
 def _cmd_build(args: argparse.Namespace) -> int:
     project_root = Path(args.project).resolve()
     try:
-        result = run_build(project_root, converter_name=args.converter)
+        result = build_project(project_root, converter_name=args.converter)
     except AsteriaError as exc:
         print(f"FATAL ERROR: {exc}", file=sys.stderr)
         return 1
@@ -46,11 +48,15 @@ def _cmd_build(args: argparse.Namespace) -> int:
 
 def _cmd_clean(args: argparse.Namespace) -> int:
     project_root = Path(args.project).resolve()
-    config = load_config(project_root / "source" / "site.yaml")
-    clean_output(config)
-    print(f"Output directory removed: {config.output_dir}")
+    try:
+        result = clean_project(project_root, remove_cache=args.cache)
+    except AsteriaError as exc:
+        print(f"FATAL ERROR: {exc}", file=sys.stderr)
+        return 1
+
+    print(f"Output directory removed: {result.output_dir}")
     if args.cache:
-        if clear_cache(project_root):
+        if result.cache_removed:
             print("Incremental conversion cache removed.")
         else:
             print("There was no conversion cache to remove.")
@@ -71,7 +77,7 @@ def _cmd_serve(args: argparse.Namespace) -> int:
 def _cmd_check(args: argparse.Namespace) -> int:
     project_root = Path(args.project).resolve()
     try:
-        result = run_build(project_root, converter_name=args.converter, dry_run=True)
+        result = check_project(project_root, converter_name=args.converter)
     except AsteriaError as exc:
         print(f"FATAL ERROR: {exc}", file=sys.stderr)
         return 1
@@ -108,7 +114,7 @@ def _cmd_reset_theme(args: argparse.Namespace) -> int:
             return 1
 
     try:
-        destination = reset_theme(project_root)
+        destination = reset_project_theme(project_root)
     except AsteriaError as exc:
         print(f"FATAL ERROR: {exc}", file=sys.stderr)
         return 1
@@ -120,7 +126,7 @@ def _cmd_reset_theme(args: argparse.Namespace) -> int:
 def _cmd_new(args: argparse.Namespace) -> int:
     target_dir = Path(args.path).resolve()
     try:
-        created = create_project(target_dir)
+        created = create_new_project(target_dir)
     except AsteriaError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1

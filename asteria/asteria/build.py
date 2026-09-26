@@ -53,12 +53,7 @@ from .writer import (
 
 
 @dataclass
-class _LangSiteData:
-    """Everything on `SiteView` that's built per language, bundled into
-    one object instead of one more loose `xxx_by_lang: dict` parameter
-    threaded through `_site_view_for_lang` every time a new sitewide
-    field is added (see `run_build`, where one `_LangSiteData` is built
-    per language up front)."""
+class _LangSiteData:   
 
     menu: list[dict[str, str]]
     nav: list[NavEntry]
@@ -361,8 +356,6 @@ def run_build(
     diagnostics = Diagnostics()
     config_path = project_root / "source" /config_filename
     config = load_config(config_path)
-
-    print(config.theme_dir) 
 
     if not config.theme_dir.exists():
         raise AsteriaError(
