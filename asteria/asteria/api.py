@@ -25,6 +25,14 @@ normally call them from a worker thread rather than its main/UI thread.
 DevServer (see server.py) already runs its own work in background
 threads and reports back through callbacks -- see its docstring for the
 main-thread-marshalling caveat that applies to those callbacks.
+
+File watching: DevServer's built-in watcher needs the optional
+`watchfiles` package (`pip install "asteria[watch]"`); check
+`watch_backend_available()` to know whether it's there. A frontend
+with its own watcher (e.g. Gio.FileMonitor in a GTK app) doesn't need
+it: create `DevServer(..., watch=False, live_reload=True)`, watch the
+paths returned by `discover_watch_paths()`, and call
+`DevServer.rebuild()` (from a worker thread) when something changes.
 """
 
 from __future__ import annotations
@@ -38,7 +46,12 @@ from .config import SiteConfig, load_config
 from .config import reset_theme as _reset_bundled_theme
 from .errors import AsteriaError
 from .scaffold import create_project
-from .server import DevServer, DevServerStatus
+from .server import (
+    DevServer,
+    DevServerStatus,
+    discover_watch_paths,
+    watch_backend_available,
+)
 from .writer import clean_output
 
 __all__ = [
@@ -53,8 +66,10 @@ __all__ = [
     "clean_project",
     "clear_project_cache",
     "create_new_project",
+    "discover_watch_paths",
     "load_project_config",
     "reset_project_theme",
+    "watch_backend_available",
 ]
 
 

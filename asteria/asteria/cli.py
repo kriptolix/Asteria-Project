@@ -154,7 +154,7 @@ def build_parser() -> argparse.ArgumentParser:
     converter_choices = ["auto", "odt2web"]
     converter_help = "ODT→HTML converter to use. 'auto' and 'odt2web' are equivalent today."
 
-    build_p = subparsers.add_parser("build", help="Gera o site")
+    build_p = subparsers.add_parser("build", help="Generate the site")
     build_p.add_argument("--converter", default="odt2web", choices=converter_choices, help=converter_help)
     build_p.set_defaults(func=_cmd_build)
 
@@ -173,7 +173,8 @@ def build_parser() -> argparse.ArgumentParser:
     serve_p.add_argument(
         "--no-watch",
         action="store_true",
-        help="Do not watch for changes in content/static/theme/site.yaml (no automatic rebuild).",
+        help="Do not watch for changes in content/static/theme/site.yaml (no automatic rebuild). "
+        "Watching needs the optional 'watchfiles' package: pip install \"asteria[watch]\".",
     )
     serve_p.set_defaults(func=_cmd_serve)
 

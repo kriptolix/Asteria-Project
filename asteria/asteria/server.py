@@ -15,12 +15,20 @@ This module has two layers:
     `asteria serve` has always printed, and returns only once the user
     hits Ctrl+C. Kept exactly for that reason: cli.py's contract (prints
     to stdout/stderr, blocks, returns an int exit code) doesn't change.
+
+Automatic rebuild on file changes uses the optional `watchfiles` package
+(`pip install "asteria[watch]"`). Without it the server still works; it
+just doesn't watch. A frontend that has its own file watcher (e.g. a GTK
+app using Gio.FileMonitor) doesn't need `watchfiles` at all: it creates
+the DevServer with `watch=False, live_reload=True` and calls
+`DevServer.rebuild()` whenever its own watcher detects a change.
 """
 
 from __future__ import annotations
 
 import functools
 import http.server
+import importlib.util
 import socketserver
 import sys
 import threading
@@ -138,8 +146,25 @@ def _start_http_server(output_dir: Path, host: str, port: int) -> _Server:
     return httpd
 
 
-def _discover_watch_paths(project_root: Path) -> list[Path]:
-    """Mirrors run_build's own path resolution (project_root / "source" /
+def watch_backend_available() -> bool:
+    """Whether the optional `watchfiles` package is installed, i.e.
+    whether DevServer's built-in file watching can work. Cheap: it only
+    looks the package up, it doesn't import it."""
+    return importlib.util.find_spec("watchfiles") is not None
+
+
+def discover_watch_paths(project_root: Path, existing_only: bool = True) -> list[Path]:
+    """Returns the paths a file watcher should observe for this project.
+
+    Public so that a frontend with its own watcher (e.g. Gio.FileMonitor
+    in a GTK app) watches exactly what the built-in one would.
+
+    By default only paths that exist right now are returned. With
+    `existing_only=False` the full candidate list comes back regardless,
+    so a watcher can keep tracking a directory that gets deleted and
+    recreated, or created for the first time after the watcher started.
+
+    Mirrors run_build's own path resolution (project_root / "source" /
     config_filename): all editable project files -- content, static
     assets, site.yaml -- live under source/, not directly under
     project_root.
@@ -161,11 +186,11 @@ def _discover_watch_paths(project_root: Path) -> list[Path]:
             source_dir / "static",
             source_dir / "site.yaml",
         ]
-        if p.exists()
+        if not existing_only or p.exists()
     ]
     try:
         theme_dir = load_config(source_dir / "site.yaml").theme_dir
-        if theme_dir.exists():
+        if not existing_only or theme_dir.exists():
             watch_paths.append(theme_dir)
     except AsteriaError:
         pass
@@ -210,6 +235,16 @@ class DevServer:
         dev.start()
         ...
         dev.stop()
+
+    Using your own file watcher (no `watchfiles` needed):
+
+        dev = DevServer(project_root, watch=False, live_reload=True)
+        dev.start()                 # blocks during the initial build!
+        ...
+        dev.rebuild()               # call whenever your watcher fires
+
+    `start()` and `rebuild()` are blocking (they run a full build), so a
+    GUI should call them from a worker thread.
     """
 
     def __init__(
@@ -219,12 +254,21 @@ class DevServer:
         port: int = 8000,
         converter_name: str = "auto",
         watch: bool = True,
+        live_reload: bool | None = None,
         on_build: Callable[[BuildResult], None] | None = None,
         on_error: Callable[[AsteriaError], None] | None = None,
         on_change: Callable[[int], None] | None = None,
         on_watch_start: Callable[[list[Path]], None] | None = None,
     ) -> None:
         """
+        watch: use the built-in file watcher to rebuild automatically.
+            Needs the optional `watchfiles` package; if it isn't
+            installed this silently becomes False (check
+            `watch_backend_available()` beforehand to warn the user).
+        live_reload: inject the live-reload script into generated pages
+            and let `rebuild()` refresh connected browsers. Defaults to
+            whatever `watch` ended up being. Pass True together with
+            watch=False when an external watcher calls `rebuild()`.
         on_build: called with the BuildResult after every successful
             build (the initial one, and every rebuild).
         on_error: called with the AsteriaError when a build fails
@@ -240,7 +284,9 @@ class DevServer:
         self.host = host
         self.port = port
         self.converter_name = converter_name
-        self.watch = watch
+        # Built-in watching is only possible when watchfiles is installed.
+        self.watch = watch and watch_backend_available()
+        self.live_reload = self.watch if live_reload is None else live_reload
         self._on_build = on_build
         self._on_error = on_error
         self._on_change = on_change
@@ -250,6 +296,9 @@ class DevServer:
         self._http_thread: threading.Thread | None = None
         self._watch_thread: threading.Thread | None = None
         self._watch_stop = threading.Event()
+        # Serializes builds: the built-in watcher and an external one
+        # (or the initial build in start()) must never run two at once.
+        self._build_lock = threading.Lock()
         self._last_result: BuildResult | None = None
 
     @property
@@ -280,21 +329,51 @@ class DevServer:
         )
 
     def _build(self) -> BuildResult | None:
-        live_reload_script = LIVE_RELOAD_SCRIPT if self.watch else None
-        try:
-            result = run_build(
-                self.project_root,
-                converter_name=self.converter_name,
-                live_reload_script=live_reload_script,
-            )
-        except AsteriaError as exc:
+        live_reload_script = LIVE_RELOAD_SCRIPT if self.live_reload else None
+        with self._build_lock:
+            try:
+                result = run_build(
+                    self.project_root,
+                    converter_name=self.converter_name,
+                    live_reload_script=live_reload_script,
+                )
+            except AsteriaError as exc:
+                # Callbacks run outside the lock so a slow or re-entrant
+                # callback can never block (or deadlock) other builds.
+                error: AsteriaError | None = exc
+                result = None
+            else:
+                error = None
+                self._last_result = result
+
+        if error is not None:
             if self._on_error:
-                self._on_error(exc)
+                self._on_error(error)
             return None
-        self._last_result = result
         if self._on_build:
             self._on_build(result)
         return result
+
+    def rebuild(self) -> BuildResult | None:
+        """Rebuilds the site and, if the build succeeded, tells connected
+        browsers to reload. Meant to be called by an external file
+        watcher (see the class docstring); the built-in watcher uses it
+        too.
+
+        Blocking -- call it from a worker thread in a GUI. Returns None
+        after reporting via `on_error` if the build failed fatally;
+        content-level errors still yield a BuildResult, as in `start()`.
+        """
+        result = self._build()
+        if result is not None:
+            self.reload_browsers()
+        return result
+
+    def reload_browsers(self) -> None:
+        """Tells every browser connected to the live-reload endpoint to
+        refresh. No-op if the HTTP server isn't running."""
+        if self._httpd is not None:
+            self._httpd.broadcaster.notify_reload()  # type: ignore[attr-defined]
 
     def start(self) -> bool:
         """Runs the initial build and starts serving it.
@@ -331,7 +410,7 @@ class DevServer:
         return True
 
     def _start_watching(self) -> None:
-        watch_paths = _discover_watch_paths(self.project_root)
+        watch_paths = discover_watch_paths(self.project_root)
         if not watch_paths:
             return
 
@@ -355,9 +434,7 @@ class DevServer:
                 break
             if self._on_change:
                 self._on_change(len(changes))
-            rebuilt = self._build()
-            if rebuilt is not None and self._httpd is not None:
-                self._httpd.broadcaster.notify_reload()  # type: ignore[attr-defined]
+            self.rebuild()
 
     def stop(self) -> None:
         """Stops the file watcher (if any) and the HTTP server, and
@@ -390,6 +467,12 @@ def serve(
     function, since this one blocks and only communicates through
     stdout/stderr and an exit code.
     """
+    # DevServer would silently disable watching without watchfiles; the
+    # CLI, unlike a GUI, should tell the user why and how to fix it.
+    watch_missing = watch and not watch_backend_available()
+    if watch_missing:
+        watch = False
+
     state = {"first_build": True}
 
     def on_build(result: BuildResult) -> None:
@@ -428,7 +511,10 @@ def serve(
     print(f"\nServing at {dev.url} (Ctrl+C to exit)")
 
     if not watch:
-        print("Automatic rebuild and live reload disabled (--no-watch).")
+        reason = "'watchfiles' is not installed" if watch_missing else "--no-watch"
+        print(f"Automatic rebuild and live reload disabled ({reason}).")
+        if watch_missing:
+            print('Install it with: pip install "asteria[watch]"')
     elif not dev.status().watching:
         print(
             "Nothing to observe (source/content, source/static, "
