@@ -29,7 +29,6 @@ fast, themeable static site.
 ## Requirements
 
 - Python 3.11+
-- The `odt2web` library (used by the default ODT→HTML converter)
 
 ## Installation
 

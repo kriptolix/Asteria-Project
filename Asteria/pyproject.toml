@@ -1,0 +1,53 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "asteria"
+version = "0.1.0"
+description = "Python SSG (Static Site Generator) based exclusively on ODT documents"
+readme = "README.md"
+requires-python = ">=3.13"
+license = "AGPL-3.0-only"
+
+authors = [
+    { name = "Diego C. Sampaio", email = "slavelix@ymail.com" }
+]
+
+keywords = [
+    "dice",
+    "3d",
+    "physics",
+    "opengl",
+    "pybullet",
+    "gaming",
+]
+
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",    
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.13",    
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Documentation",
+    "Topic :: Text Processing",
+]
+
+dependencies = [
+    "PyYAML>=6.0",
+    "Jinja2>=3.1",
+    "odt2web>=0.8",
+    "MarkupSafe>=3.0.3",
+]
+
+[project.optional-dependencies]
+watch = ["watchfiles>=0.21"]
+
+[project.scripts]
+asteria = "asteria.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["asteria*"]
+
+[tool.setuptools.package-data]
+asteria = ["themes/**/*"]

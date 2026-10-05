@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "odt2web"
+version = "0.8.0"
+description = "Converts OpenDocument Text (.odt) documents to semantic HTML + CSS."
+readme = "README.md"
+requires-python = ">=3.13"
+license = "AGPL-3.0-only"
+
+authors = [
+    { name = "Diego C. Sampaio", email = "slavelix@ymail.com" }
+]
+
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",    
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.13",    
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Documentation",
+    "Topic :: Text Processing",
+]
+
+dependencies = [
+    "PyYAML>=6.0",
+]
+
+
+[project.scripts]
+odt2web = "odt2web.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["odt2web*"]
