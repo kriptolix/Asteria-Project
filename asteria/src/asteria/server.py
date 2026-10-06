@@ -147,36 +147,13 @@ def _start_http_server(output_dir: Path, host: str, port: int) -> _Server:
 
 
 def watch_backend_available() -> bool:
-    """Whether the optional `watchfiles` package is installed, i.e.
-    whether DevServer's built-in file watching can work. Cheap: it only
-    looks the package up, it doesn't import it."""
+    
     return importlib.util.find_spec("watchfiles") is not None
 
 
 def discover_watch_paths(project_root: Path, existing_only: bool = True) -> list[Path]:
     """Returns the paths a file watcher should observe for this project.
-
-    Public so that a frontend with its own watcher (e.g. Gio.FileMonitor
-    in a GTK app) watches exactly what the built-in one would.
-
-    By default only paths that exist right now are returned. With
-    `existing_only=False` the full candidate list comes back regardless,
-    so a watcher can keep tracking a directory that gets deleted and
-    recreated, or created for the first time after the watcher started.
-
-    Mirrors run_build's own path resolution (project_root / "source" /
-    config_filename): all editable project files -- content, static
-    assets, site.yaml -- live under source/, not directly under
-    project_root.
-
-    The active theme's directory is included too -- SiteConfig.theme_dir
-    combines `theme.directory` and `theme.name` from site.yaml (falling
-    back to Asteria's own bundled theme when the project doesn't have
-    its own), so this follows whatever the site is actually configured
-    to use instead of a fixed guess at `source/themes`. Failing to read
-    site.yaml here (AsteriaError) just means the theme directory is
-    skipped -- the caller already loaded it once for the initial build,
-    so this is defensive only.
+    
     """
     source_dir = project_root / "source"
     watch_paths = [
@@ -199,8 +176,7 @@ def discover_watch_paths(project_root: Path, existing_only: bool = True) -> list
 
 @dataclass
 class DevServerStatus:
-    """A snapshot of a DevServer's current state -- cheap to build, safe
-    to poll from any thread (e.g. a GUI updating a status bar)."""
+    """A snapshot of a DevServer's current state."""
 
     running: bool
     host: str
@@ -356,13 +332,7 @@ class DevServer:
 
     def rebuild(self) -> BuildResult | None:
         """Rebuilds the site and, if the build succeeded, tells connected
-        browsers to reload. Meant to be called by an external file
-        watcher (see the class docstring); the built-in watcher uses it
-        too.
-
-        Blocking -- call it from a worker thread in a GUI. Returns None
-        after reporting via `on_error` if the build failed fatally;
-        content-level errors still yield a BuildResult, as in `start()`.
+        browsers to reload.
         """
         result = self._build()
         if result is not None:
@@ -370,21 +340,12 @@ class DevServer:
         return result
 
     def reload_browsers(self) -> None:
-        """Tells every browser connected to the live-reload endpoint to
-        refresh. No-op if the HTTP server isn't running."""
+     
         if self._httpd is not None:
             self._httpd.broadcaster.notify_reload()  # type: ignore[attr-defined]
 
     def start(self) -> bool:
         """Runs the initial build and starts serving it.
-
-        Returns False (after reporting via on_error) if the initial
-        build failed fatally, or if the HTTP port couldn't be bound.
-        Returns True otherwise -- even if the build produced content
-        errors, as long as there's an output_dir to serve, matching the
-        CLI's long-standing "serve what already exists on disk" behavior.
-        Calling start() while already running is a no-op that returns
-        True.
         """
         if self.is_running:
             return True
@@ -438,8 +399,7 @@ class DevServer:
 
     def stop(self) -> None:
         """Stops the file watcher (if any) and the HTTP server, and
-        waits (briefly) for their threads to actually exit. Safe to call
-        even if `start()` was never called or already failed."""
+        waits (briefly) for their threads to actually exit."""
         self._watch_stop.set()
         if self._watch_thread is not None:
             self._watch_thread.join(timeout=2)
@@ -462,10 +422,7 @@ def serve(
     watch: bool = True,
 ) -> int:
     """CLI entry point for `asteria serve`: blocks until Ctrl+C, printing
-    exactly what it always has. Implemented on top of DevServer -- any
-    other frontend should use DevServer directly instead of this
-    function, since this one blocks and only communicates through
-    stdout/stderr and an exit code.
+    exactly what it always has. Implemented on top of DevServer.
     """
     # DevServer would silently disable watching without watchfiles; the
     # CLI, unlike a GUI, should tell the user why and how to fix it.

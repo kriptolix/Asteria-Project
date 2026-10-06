@@ -290,9 +290,7 @@ def _render_image(node: Image, ctx: RenderContext) -> str:
         src = escape_attr(node.src)
 
     # no inline width/height: the source dimensions are only reflected as
-    # coarse classes (size, orientation, alignment), so the SSG's CSS
-    # decides the real layout (an inline height would also fight the
-    # generated "max-width: 100%; height: auto" rule on narrow screens).
+    # coarse classes (size, orientation, alignment).
     alt = escape_attr(node.alt or "")
     classes = _image_classes(node)
 
@@ -325,10 +323,7 @@ def _render_custom(node: CustomNode, ctx: RenderContext) -> str:
 
 
 def _render_raw_html(node: RawHtml, ctx: RenderContext) -> str:
-    """Emits a literal ':::html' block (see rawhtml.py). Only passes the
-    content through unescaped if allow_raw_html is explicitly enabled
-    (section 13 - the .odt is treated as untrusted input by default;
-    this is an opt-in escape hatch)."""
+    
     ctx.features.add("raw-html")
     if not ctx.allow_raw_html:
         ctx.warnings.append(
@@ -340,11 +335,7 @@ def _render_raw_html(node: RawHtml, ctx: RenderContext) -> str:
 
 
 def _render_code_block(node: CodeBlock, ctx: RenderContext) -> str:
-    """Renders a merged code block (see codeblocks.py) as
-    <pre><code class="language-xxx">...</code></pre> - the format
-    expected by syntax highlighters like highlight.js, Prism or Shiki.
-    This library does not do the highlighting itself; it only delivers
-    the markup."""
+   
     ctx.features.add("pre")
     ctx.features.add("code-block")
     css_class = node.css_class
@@ -385,13 +376,7 @@ def render_notes(document: Document, ctx: RenderContext) -> str:
 
 
 def render_front_matter(front_matter: dict | None) -> str:
-    """Renders the extracted front matter (see frontmatter.py) as:
-
-        <div class="ssg-frontmatter" data-ssg="frontmatter">
-          <meta data-key="title" content="...">
-          ...
-        </div>
-    """
+    
     if not front_matter:
         return ""
     lines = ['<div class="ssg-frontmatter" data-ssg="frontmatter">']
@@ -410,9 +395,7 @@ def render_document(
     custom_renderers: dict[str, CustomRenderer] | None = None,
     allow_raw_html: bool = False,
 ) -> tuple[str, RenderContext]:
-    """Renders the whole document (front matter + all sections + notes)
-    and returns (body_html, context) - the context carries the
-    `features` used, needed by the CSS generator (section 9)."""
+   
     ctx = RenderContext(
         style_map=style_map or {}, custom_renderers=custom_renderers or {},
         allow_raw_html=allow_raw_html,
@@ -424,7 +407,7 @@ def render_document(
 
 
 def wrap_full_document(body_html: str, css: str | None, metadata) -> str:
-    """Wraps the fragment in a complete HTML document (section 12)."""
+   
     lang = metadata.language or "pt"
     head_parts = ['<meta charset="utf-8">']
     if metadata.title:

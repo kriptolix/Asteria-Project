@@ -1,7 +1,4 @@
-"""Parser: content.xml -> Document Model (spec sections 4 and 5).
-
-The parser never generates HTML directly; it produces the intermediate
-model defined in model.py.
+"""Parser: content.xml -> Document Model.
 """
 from __future__ import annotations
 
@@ -17,7 +14,7 @@ from .model import (
 from .ns import q
 from .reader import OdtPackage
 from .styles import (
-    ColumnInfo, StyleRegistry, build_list_style_registry, build_style_registry,
+    StyleRegistry, build_list_style_registry, build_style_registry,
 )
 from .frontmatter import extract_front_matter
 from .rawhtml import extract_raw_html_blocks

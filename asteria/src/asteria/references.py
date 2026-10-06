@@ -1,10 +1,5 @@
 """
-Semantic reference resolution.
-
 Handles [[id]] / [[id|Custom label]] cross-references between pages/posts.
-Raw HTML embedding is NOT handled here — that's a `:::html ... :::` fenced
-block recognized directly by the odt2web converter, before this module
-ever sees the HTML.
 """
 
 from __future__ import annotations
@@ -36,12 +31,7 @@ def build_registry(items: list[Any]) -> dict[str, Any]:
 def build_translation_registry(items: list[Any]) -> dict[str, dict[str, Any]]:
     """Groups items by translation_key -> {lang: item}, so a plain
     [[reference]] can be resolved to the version matching the *current*
-    document's language, instead of always landing on whichever
-    translation happens to own that exact id.
-
-    Items without a translation_key/lang (e.g. raw pages) are skipped —
-    they're still reachable by their exact id through the regular
-    registry built by `build_registry`."""
+    document's language."""
     registry: dict[str, dict[str, Any]] = {}
     for item in items:
         translation_key = getattr(item, "translation_key", None)
@@ -62,15 +52,7 @@ def resolve_references(
     default_language: str = "",
 ) -> str:
     def _resolve_target(ref_id: str) -> Any | None:
-        # translation_key is checked FIRST, exact id second — mirrors
-        # build._build_menu's `page:` resolution, and for the same
-        # reason: a translated document's translation_key (e.g.
-        # "about") is usually identical to the untranslated/default
-        # document's own id, so checking id first would always match the
-        # default-language document and never reach the translation
-        # group. A dotted id used to pin one specific translation (e.g.
-        # "about.pt") is never itself a valid translation_key, so this
-        # order never breaks that escape hatch.
+        # translation_key is checked FIRST, exact id second.
         if translation_registry:
             group = translation_registry.get(ref_id)
             if group:
@@ -91,18 +73,7 @@ def resolve_references(
             return f"[[{ref_id}{suffix}]]"
 
         if ref_id.lower() == MORE_MARKER:
-            # [[more]] is a reserved marker, not a cross-reference — it's
-            # handled later, per-post, by split_at_more_marker() to build
-            # the excerpt/preview split. REFERENCE_RE matches it too
-            # (any [[...]] with an alphanumeric id), so without this
-            # check it would be treated as a broken reference to a
-            # nonexistent document with id "more": resolve_references_for_all()
-            # runs before split_at_more_marker() in run_build(), so the
-            # marker would already be replaced with a
-            # `broken-reference` span (and, since target-not-found is a
-            # diagnostics ERROR, would abort the whole build) before
-            # split_at_more_marker ever got a chance to see it. Left
-            # untouched here, it survives verbatim to that later step.
+            # [[more]] is a reserved marker, not a cross-reference.
             return match.group(0)
 
         target = _resolve_target(ref_id)

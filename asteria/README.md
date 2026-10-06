@@ -145,7 +145,7 @@ The **[complete manual](MANUAL.md)** covers:
 
 ## License
 
-Add your license of choice here (e.g. MIT).
+AGPL-3.0.
 
 ## Contributing
 

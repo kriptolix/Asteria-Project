@@ -90,7 +90,7 @@ source .venv/bin/activate
 With the virtual environment activated, install both the SSG and the ODT conversion library in editable mode:
 
 ```bash
-pip install Odt2web Asteria
+pip install ./odt2web ./asteria
 ```
 
 

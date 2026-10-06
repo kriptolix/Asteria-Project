@@ -363,15 +363,6 @@ def render_note(node, context):
 style_map = {"Warning": {"tag": "custom:note"}}
 ```
 
-## Tests
-
-```bash
-pytest
-```
-
-The test suite (`tests/`) builds valid synthetic `.odt` packages
-(`tests/odt_builder.py`) without depending on LibreOffice.
-
 ## Known limitations
 
 - Front matter, `:::html` blocks, and code block merging operate at the
@@ -384,7 +375,7 @@ The test suite (`tests/`) builds valid synthetic `.odt` packages
 
 ## License
 
-Add your license of choice here (e.g. MIT).
+AGPL-3.0.
 
 ## Contributing
 

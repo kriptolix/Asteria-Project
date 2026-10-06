@@ -1,14 +1,4 @@
-"""Table hints (structural information about a table).
-
-The goal is not to reproduce the table's appearance from the ODT, but to
-give the SSG enough information to decide how to adapt it to the web:
-
-- a "simple" table (rectangular grid, no merged cells) can safely be
-  restyled, e.g. stacked into cards on narrow screens;
-- a "complex" table (merged cells or ragged rows) usually has to keep its
-  grid and scroll horizontally instead;
-- the relative column shares tell which columns the author meant to be
-  narrow or wide, independently of the printed page width.
+"""Table hints.
 """
 from __future__ import annotations
 

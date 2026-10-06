@@ -92,11 +92,8 @@ def _assign_urls(config: SiteConfig, pages: list[Page], posts: list[Post]) -> No
 
 
 def _link_translations(documents: list[Document]) -> None:
-    """Preenche `doc.translations` com as demais versões (em outros
-    idiomas) de cada documento, agrupadas por `translation_key`. Chame
-    separadamente para `pages` e `posts` — uma página e um post nunca
-    devem ser considerados tradução um do outro, mesmo que, por
-    coincidência, compartilhem a mesma translation_key."""
+    """Populates `doc.translations` with the other versions 
+    (in other languages) of each document, grouped by `translation_key`.."""
     groups: dict[str, list[Document]] = {}
     for doc in documents:
         groups.setdefault(doc.translation_key, []).append(doc)
@@ -135,9 +132,7 @@ def _resolve_page_reference(
     lang: str,
     default_language: str,
 ) -> Page | None:
-    """Resolves a page reference string (as used by `menu: - page: ...`
-    and `home_page:` in site.yaml) to a `Page`.
-    """
+        
     translations = pages_by_translation_key.get(ref)
     if translations:
         return (
@@ -288,7 +283,7 @@ def _document_context(
 def _resolve_template_name(
     env, doc: Document, default_name: str, diagnostics: Diagnostics
 ) -> str:
-    """Resolve o template do tema a usar para este documento."""
+    
     name = doc.template or default_name
     if name == default_name:
         return name

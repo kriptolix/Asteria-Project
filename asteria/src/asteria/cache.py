@@ -1,16 +1,7 @@
 """Incremental conversion cache.
 
 The cache stores the result of the ODT→HTML conversion for
-each document (the most expensive step in the pipeline—this is where odt2web
-performs the actual parsing work) across runs, keyed by path, mtime,
-and source file size. If an `.odt` file hasn't changed since the last build,
-the conversion is skipped and the previous result is reused.
-
-Anything that depends on multiple documents simultaneously—`[[id]]`
-references, TOCs, `nav:`, taxonomies, blog pagination, sitemaps, feeds,
-and template rendering—continues to run fully during **every**
-build, even incremental ones. This prevents subtle bugs caused by
-stale data.
+each document.
 """
 
 from __future__ import annotations
@@ -110,7 +101,7 @@ def _entry_to_result(entry: dict[str, Any]) -> ConversionResult:
         html=entry["html"],
         images=images,
         converter_name=entry.get("converter_name", "cache"),
-        # Front matter is always extracted from the HTML (see asteria.frontmatter),
+        # Front matter is always extracted from the HTML,
         # so it does not need to be recalculated or cached separately.
         metadata=None,
     )

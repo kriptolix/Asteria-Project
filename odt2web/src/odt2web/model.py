@@ -77,9 +77,7 @@ class Heading:
     level: int  # 1..6, already normalized
     children: list[InlineNode] = field(default_factory=list)
     style_name: Optional[str] = None
-    style_candidates: list[str] = field(default_factory=list)
-    # same meaning as Paragraph.keep_with_next; headings default to True
-    # unless the ODT style explicitly opts out.
+    style_candidates: list[str] = field(default_factory=list)    
     keep_with_next: bool = False
 
 
@@ -128,11 +126,7 @@ class Image:
     caption: Optional[str] = None
     width: Optional[str] = None  # already in a CSS unit (e.g. "8.5cm")
     height: Optional[str] = None
-    linked: bool = False  # True = referenced (external) image, not embedded
-    # horizontal alignment as authored in the ODT frame's graphic style
-    # ("left" | "center" | "right"), when it could be determined -
-    # surfaced by the renderer as an "odt-image-align-*" class rather
-    # than inline positioning, so SSG-side CSS controls the actual layout.
+    linked: bool = False  # True = referenced (external) image, not embedded    
     align: Optional[str] = None
 
 

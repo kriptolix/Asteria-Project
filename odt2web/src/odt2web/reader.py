@@ -1,14 +1,4 @@
-"""Package Reader (spec section 3.1).
-
-Reads the .odt as a ZIP package (ODF format) and gives access to:
-- content.xml
-- styles.xml
-- meta.xml
-- settings.xml
-- manifest.xml
-- binary resources under Pictures/ and others
-
-Does not depend on LibreOffice.
+"""Package Reader.
 """
 from __future__ import annotations
 
@@ -41,7 +31,7 @@ def _parse_xml(data: bytes) -> ET.Element:
 
 
 def read_odt_bytes(data: bytes) -> OdtPackage:
-    """Reads an .odt package from in-memory bytes."""
+    
     try:
         zf = zipfile.ZipFile(io.BytesIO(data))
     except zipfile.BadZipFile as exc:
@@ -97,7 +87,7 @@ def read_odt_bytes(data: bytes) -> OdtPackage:
 
 
 def read_odt_file(path: str) -> OdtPackage:
-    """Reads an .odt package from a path on the file system."""
+    
     with open(path, "rb") as fh:
         data = fh.read()
     return read_odt_bytes(data)

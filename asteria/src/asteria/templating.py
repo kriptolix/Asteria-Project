@@ -147,12 +147,7 @@ def _nav_branch_contains(entry: Any, path: str) -> bool:
 
 
 def _menu_item_active(item: dict, path: str) -> bool:
-    """Equivalente de `_nav_branch_contains` para `site.menu`: os itens
-    ali são dicts planos (`{title, url, page_id}`, ver
-    build._build_menu), sem filhos/aninhamento, então não precisa de
-    recursão — só compara a URL diretamente. Usado pelo global
-    `menu_item_active(item, path)` para marcar o item corrente (ex:
-    `class="active"`) num template."""
+
     return item.get("url") == path
 
 

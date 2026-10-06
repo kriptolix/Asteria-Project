@@ -95,25 +95,7 @@ def _rewrite_asset_references(
     """Rewrites literal occurrences of an already-fingerprinted asset's
     original path with its fingerprinted path, inside every file under
     `subdirs` — e.g. a `url('/fonts/foo.woff2')` inside a .css file,
-    where fingerprint_assets() has already renamed that font on disk to
-    `/fonts/foo.a1b2c3.woff2`.
-
-    This exists because `asset()` (the Jinja global templates use to
-    resolve a fingerprinted path) only runs inside Jinja templates —
-    CSS/JS files are copied to the output verbatim (copy_static_assets),
-    so a font/image reference written inside one of them is never
-    touched by `asset()` and would otherwise keep pointing at a filename
-    that no longer exists once fingerprinting renames it.
-
-    Only root-relative paths (starting with "/", exactly what `asset()`
-    itself expects in templates) are recognized. A CSS/JS file
-    referencing a font/image with a relative path instead
-    (`../fonts/foo.woff2`, `./foo.woff2`) is NOT rewritten — resolving
-    that correctly would require knowing the referencing file's own
-    location on disk and doing real URL resolution, which is a lot of
-    machinery for what `assets.fingerprint` otherwise keeps deliberately
-    simple. Write font/image references in CSS/JS the same way templates
-    do: an absolute, root-relative path.
+    where fingerprint_assets() has already renamed that font on disk.
     """
     if not manifest:
         return
@@ -142,26 +124,7 @@ def _rewrite_asset_references(
 def fingerprint_assets(
     output_dir: Path, subdirs: tuple[str, ...] = FINGERPRINT_SUBDIRS
 ) -> dict[str, str]:
-    """Renames every file under `subdirs` to embed a short content hash
-    (e.g. `style.css` -> `style.a1b2c3.css`) and returns the
-    original-path -> fingerprinted-path manifest that
-    templating.apply_asset_manifest() uses to back the `asset()` global.
-
-    Fonts and images are fingerprinted FIRST, before css/js — the
-    opposite of `subdirs`' own declared order — specifically so that
-    `_rewrite_asset_references` has their manifest entries ready in time
-    to patch any `url(/fonts/...)`/`url(/images/...)` found inside a
-    css/js file's own content. css/js are fingerprinted LAST, after that
-    patching, so the hash embedded in their own final filename reflects
-    the corrected content, not the stale, pre-patch one — otherwise the
-    filename's hash wouldn't actually match what's being served under
-    it, defeating the point of content-based fingerprinting.
-
-    Any subdir passed in that isn't "fonts"/"images"/"css"/"js" is still
-    fingerprinted (self-referencing content in it just won't be patched,
-    same as css/js referencing each other — see _rewrite_asset_references
-    — a rarer pattern this function doesn't attempt to handle).
-    """
+   
     manifest: dict[str, str] = {}
 
     binary_subdirs = tuple(s for s in subdirs if s in ("fonts", "images"))

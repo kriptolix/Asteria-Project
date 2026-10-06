@@ -1,10 +1,5 @@
 """
-Content discovery.
-
-Scans `content/pages` and `content/posts`, converts each `.odt` file, extracts
-front matter, and assembles `Page`/`Post` objects. It also identifies "raw"
-HTML pages (see `asteria/raw.py`) and validates that all identifiers
-(file/folder names without extensions) are unique across the entire site.
+Scans `content/pages` and `content/posts`.
 """
 
 from __future__ import annotations
@@ -83,14 +78,7 @@ def _walk_posts(
 
 
 def _detect_lang(stem: str, languages: list[str], default_language: str) -> tuple[str, str]:
-    """Detecta um idioma explícito no nome do arquivo.
-
-    Convenção: "meu-post.pt.odt" -> idioma "pt" (desde que "pt" esteja
-    entre os idiomas configurados em `i18n.languages`/`site.language`);
-    "meu-post.odt" -> idioma padrão do site. Retorna
-    (translation_key, lang), onde translation_key é o nome do arquivo
-    sem o sufixo de idioma — usado para agrupar as traduções de um
-    mesmo post entre si.
+    """Detects an explicit language in the file name.
     """
     if "." in stem:
         base, _, suffix = stem.rpartition(".")
@@ -130,17 +118,11 @@ def _load_document(
                 "Document without a 'title' in the front matter; using the filename.",
                 source=str(path),
             )
-
-    # Highlight básico de blocos <pre><code class="language-x"> (ver
-    # asteria.highlight). Roda sempre, mesmo em documentos que vieram do
-    # cache de conversão (cache.py só evita repetir a conversão ODT→HTML
-    # em si — tudo que é pós-processamento de HTML, como isto e o front
-    # matter acima, continua rodando em todo build, igual já acontecia
-    # antes desta mudança).
+    
     content_html = highlight_code_blocks(content_html, code_languages)
 
-    # O campo `lang:` do front matter, quando presente, tem prioridade
-    # sobre o idioma detectado a partir do nome do arquivo.
+    # The `lang:` field in the front matter, when present, takes precedence
+    # over the language detected from the filename. 
     final_lang = fm.lang or lang
 
     cls = Page if kind == "page" else Post
@@ -163,17 +145,12 @@ def discover_content(
     pages: list[Page] = []
     posts: list[Post] = []
     raw_pages: list[RawPage] = []
-
-    # Definições de linguagem para o highlight (bundled + eventual
-    # source/highlight.yaml do projeto) — carregadas uma vez por build,
-    # não por documento.
+    
     code_languages = load_languages(config.root)
 
     page_odts, page_raw_dirs = _walk_pages(config.pages_dir, diagnostics)
     for path in page_odts:
-        # Páginas seguem a mesma convenção dos posts: "sobre.odt" -> idioma
-        # padrão; "sobre.pt.odt" -> idioma "pt" (se configurado). O campo
-        # `lang:` no front matter tem prioridade sobre o nome do arquivo.
+        
         translation_key, detected_lang = _detect_lang(
             path.stem, config.languages, config.default_language
         )

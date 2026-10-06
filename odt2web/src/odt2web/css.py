@@ -1,8 +1,4 @@
-"""CSS generator (spec section 9).
-
-Generates only the rules needed for the resources actually used in the
-document (columns, tables, notes, etc.), as detected by
-RenderContext.features during rendering.
+"""CSS generator
 """
 from __future__ import annotations
 

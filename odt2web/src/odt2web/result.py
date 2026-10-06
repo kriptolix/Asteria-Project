@@ -1,4 +1,4 @@
-"""Public types returned by the API (spec section 2)."""
+"""Public types returned by the API."""
 from __future__ import annotations
 
 from dataclasses import dataclass, field

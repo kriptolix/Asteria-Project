@@ -40,13 +40,6 @@ class ExtractedImage:
 class ConversionResult:
     """
     Standardized output from any ODT→HTML converter. 
-
-    ``metadata``: when the converter itself recognizes and extracts the
-    front matter block (as with odt2web, via ``result.metadata``), it is
-    exposed here already normalized as ``Frontmatter``, and the SSG does not
-    need to look for the ``div.ssg-frontmatter`` block in the HTML. When
-    ``None`` (as with FallbackConverter), the SSG looks for the standardized
-    block within the HTML.
     """
 
     html: str
@@ -205,7 +198,7 @@ class FallbackConverter(ODTConverter):
                 )
         return images
 
-    # -- corpo do documento ---------------------------------------------------
+    # -- document body ---------------------------------------------------
     def _render_body(
         self, body: ET.Element, images: list[ExtractedImage]
     ) -> tuple[list[str], list[str]]:
@@ -277,9 +270,7 @@ class FallbackConverter(ODTConverter):
                 if img_el is not None:
                     href = img_el.attrib.get(f"{{{ODT_NS['xlink']}}}href", "")
                     img = image_by_path.get(href)
-                    # Caminho relativo: a imagem é gravada no mesmo
-                    # diretório de saída do documento (ver writer.py), não
-                    # em uma pasta /images/ compartilhada.
+                   
                     src = img.output_name if img else href
                     parts.append(f'<img src="{self._escape(src)}" alt="">')
             if child.tail:
@@ -296,19 +287,15 @@ class FallbackConverter(ODTConverter):
             .replace(">", "&gt;")
         )
 
-    # -- front matter (spec 5.1 / 5.2) ---------------------------------------
+    # -- front matter ---------------------------------------
     def _extract_frontmatter(
         self,
         blocks_html: list[str],
         plain_paragraphs: list[str],
         odt_path: Path,
         diagnostics: Diagnostics,
-    ) -> tuple[str, list[str]]:
-        """Reconhece o bloco `--- chave: valor ... ---` nos parágrafos
-        iniciais do documento e o converte para o HTML padronizado da
-        seção 5.2 da spec.
-        """
-        # Junta os parágrafos de texto simples iniciais para detectar o bloco.
+    ) -> tuple[str, list[str]]:       
+        
         leading_text_parts = []
         consumed = 0
         for text in plain_paragraphs:

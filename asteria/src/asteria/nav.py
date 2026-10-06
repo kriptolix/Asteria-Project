@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from .errors import Diagnostics
-from .references import build_translation_registry
+# from .references import build_translation_registry
 
 
 @dataclass
@@ -25,14 +25,7 @@ def _resolve_target(
     lang: str,
     default_language: str,
 ) -> Any | None:
-    """translation_key is checked FIRST, exact id second — same rationale
-    as build._build_menu and references.resolve_references: a translated
-    page's translation_key (e.g. "about") is usually identical to the
-    untranslated/default page's own id, so checking id first would always
-    match the default-language page and never reach the translation
-    group. A dotted id used to pin one specific translation (e.g.
-    "about.pt") is never itself a valid translation_key, so this order
-    never breaks that escape hatch."""
+    """translation_key is checked FIRST, exact id second."""
     group = translation_registry.get(page_id)
     if group:
         return (
@@ -44,13 +37,8 @@ def _resolve_target(
 
 
 def _title_for(target: Any) -> str:
-    """A `nav:` entry's label always comes from the resolved document
-    itself, never from site.yaml — that's the whole reason `nav_title:`
-    (front matter) exists: a label exclusive to the nav, distinct from
-    the document's real `title:`, and already translated per-document
-    like any other front matter field. `getattr` guards raw pages
-    (RawPage has no front matter / nav_title at all), which fall
-    straight through to `target.title`."""
+    """A  label exclusive to the nav, distinct from
+    the document's real `title:`."""
     return getattr(target, "nav_title", None) or target.title
 
 
@@ -82,19 +70,7 @@ def _parse_items(
     """`items` is `nav:` (or a nested branch of it): each entry is either
     a bare document id (a leaf), or a single-key mapping `{id: [...]}`
     whose key is a document id and whose value is a list of children (a
-    branch) — nestable to any depth the same way, e.g.:
-
-        nav:
-          - "introducao":
-            - "basico"
-            - "personagens":
-              - "criacao_personagem"
-              - "arquetipos"
-
-    There is no site.yaml-level title anywhere in this format: a
-    branch's key is resolved as a page id exactly like a leaf is, and
-    its label comes from that same resolved document — see
-    `_title_for`. The key is never treated as literal display text."""
+    branch) — nestable to any depth the same way."""
     result: list[NavEntry] = []
 
     for raw in items:
@@ -143,15 +119,7 @@ def build_nav(
     lang: str = "",
     default_language: str = "",
 ) -> list[NavEntry]:
-    """Builds the nav tree for a single language. `nav_config` is a list
-    of document ids only — a bare id is a leaf, a single-key mapping
-    `{id: [...]}` is a branch, nestable to any depth; see `_parse_items`.
-    There is no way to write a title directly in site.yaml, branch key
-    included: every entry's label comes from the resolved document's own
-    `nav_title:` front matter field, falling back to its `title:` (see
-    `_title_for`) — unlike a title hardcoded in site.yaml, this is
-    naturally per-language, since each translation has its own front
-    matter.
+    """Builds the nav tree for a single language..
     """
     return _parse_items(
         nav_config or [], registry, translation_registry or {}, lang, default_language, diagnostics

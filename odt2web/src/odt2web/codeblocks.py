@@ -1,29 +1,4 @@
-"""Code blocks (section 5 'structure' / section 7 'custom styles').
-
-Treats code blocks as a special case of a paragraph whose style is
-mapped (via style_map, sections 6/7) to the "pre" tag - by default, the
-LibreOffice native "Preformatted Text" style. Unlike a regular
-paragraph:
-
-- several consecutive paragraphs with the same "pre" style are merged
-  into a single <pre><code>...</code></pre> block (one line per
-  paragraph), instead of becoming several separate <pre> blocks;
-- the content is extracted as literal text (inline formatting such as
-  bold/italic is ignored) - applying <strong>/<em> inside a code block
-  would break copy-paste and most syntax highlighters;
-- the language can be indicated in two ways: (a) the style_map's CSS
-  class, if it follows the "language-xxx" convention (e.g. dedicated
-  per-language ODT styles, like "Code Python" -> {"tag": "pre",
-  "class": "language-python"}); or (b) a Markdown-style marker on the
-  first line of the block (```python), removed from the final content -
-  useful for people who don't want to create an ODT style per language.
-
-The generated HTML (<pre><code class="language-xxx">) follows the
-convention adopted by client-side syntax-highlighting libraries
-(highlight.js, Prism) and by SSGs' server-side highlighters (e.g. Chroma
-in Hugo, Shiki/PrismJS in Eleventy/11ty plugins) - the library does not
-do the highlighting itself, it only delivers the markup those tools
-expect.
+"""Code blocks. 
 """
 from __future__ import annotations
 
@@ -107,6 +82,6 @@ def _merge_children(children: list, style_map: dict) -> list:
 
 
 def merge_code_blocks(sections: list[Section], style_map: dict) -> None:
-    """Applies the merging to all sections of the document, in place."""
+    
     for section in sections:
         section.children = _merge_children(section.children, style_map)

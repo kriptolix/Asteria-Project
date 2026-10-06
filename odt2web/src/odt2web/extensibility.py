@@ -1,4 +1,4 @@
-"""Extensibility (spec section 17).
+"""Extensibility.
 
 Allows registering renderers for specific elements without modifying the
 parser. An ODT style can be mapped, via style_map, to a "tag" prefixed

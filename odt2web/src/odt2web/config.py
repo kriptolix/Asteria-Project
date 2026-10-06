@@ -1,5 +1,4 @@
-"""YAML-based configuration (spec section 16, adapted from TOML to
-YAML).
+"""YAML-based configuration.
 
 Example of an accepted config file:
 
