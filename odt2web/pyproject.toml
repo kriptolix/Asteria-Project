@@ -28,9 +28,14 @@ dependencies = [
     "PyYAML>=6.0",
 ]
 
-
 [project.scripts]
 odt2web = "odt2web.cli:main"
 
 [tool.setuptools.packages.find]
+where = ["src"]
 include = ["odt2web*"]
+
+[project.urls]
+Homepage = "https://github.com/kriptolix/Asteria-Project"
+Repository = "https://github.com/kriptolix/Asteria-Project"
+Issues = "https://github.com/kriptolix/Asteria-Project/issues"

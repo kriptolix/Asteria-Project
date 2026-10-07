@@ -4,3 +4,4 @@ __pycache__/
 my-site/
 titulo-mutante/
 .pytest_cache/
+*build/

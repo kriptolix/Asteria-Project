@@ -2,9 +2,9 @@
 
 This is the Asteria Project monorepo. It contains:
 
-- **Asteria** — the static site generator itself.
-- **Odt2web** — the converter used by Asteria to generate HTML from ODT files.
-- **Themes** — some themes to use with Asteria.
+- [**Asteria**](asteria/README.md) — the static site generator itself. 
+- [**Odt2Web**](odt2web/README.md) — the converter used by Asteria to generate HTML from ODT files.
+- **Themes** — some theme drafts.
 
 ## Why ODT files?
 
@@ -26,13 +26,13 @@ I thought about writing a plugin for some other SSGs, but the task looked harder
 
 Yes, a good chunk.
 
-Most of the work on odt2web was done with Claude's assistance. Some other parts, such as TOC and Nav generation, were also made with its help.
+Most of the work on odt2web was done with AI's assistance. Some other parts, such as TOC, Nav generation and internationalization were also made with its help.
 
 ## Can I open issues/PRs using slop?
 
 Well, I would be a hypocrite if I said no, but it's a little more complicated than that.
 
-The thing is: I used Claude to help me with the code, but **I KNOW THIS CODE DEEPLY**. I know what it does and doesn't do, where things are, and how to fix things in it **WITHOUT CLAUDE**.
+The thing is: I used AI to help me with the code, but **I KNOW THIS CODE DEEPLY**. I know what it does and doesn't do, where things are, and how to fix things in it **WITHOUT AI**.
 
 If you understand what you're doing and use AI just to do brute-force/repetitive work, and you can answer questions and propose solutions yourself, then you can absolutely use it to work on this project.
 
@@ -87,7 +87,7 @@ source .venv/bin/activate
 
 ### 3. Install the packages
 
-With the virtual environment activated, install both the SSG and the ODT conversion library in editable mode:
+With the virtual environment activated, install both the SSG and the ODT conversion library:
 
 ```bash
 pip install ./odt2web ./asteria

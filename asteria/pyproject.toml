@@ -38,7 +38,13 @@ watch = ["watchfiles>=0.21"]
 asteria = "asteria.cli:main"
 
 [tool.setuptools.packages.find]
+where = ["src"]
 include = ["asteria*"]
 
 [tool.setuptools.package-data]
-asteria = ["themes/**/*"]
+asteria = ["site/**/*"]
+
+[project.urls]
+Homepage = "https://github.com/kriptolix/Asteria-Project"
+Repository = "https://github.com/kriptolix/Asteria-Project"
+Issues = "https://github.com/kriptolix/Asteria-Project/issues"

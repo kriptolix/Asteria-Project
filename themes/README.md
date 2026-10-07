@@ -1,4 +1,4 @@
-> Themes I am working on involving proof-of-concept resources, pretty much broken now.
+> Themes I am working on involving proof-of-concept resources. None of them are working; most were created during various stages of Asteria's development and haven't been adapted to the current version.
 
 ## Theme Structure
 

@@ -30,7 +30,7 @@ printed-page appearance.
 ## Installation
 
 ```bash
-pip install -e .
+pip install .
 ```
 
 ## Basic usage
@@ -124,9 +124,7 @@ Text" style, or any style mapped to `pre`), the library:
 - merges consecutive paragraphs into a single block instead of creating one
   `<pre>` per line;
 - generates `<pre><code class="language-xxx">...</code></pre>` — the markup
-  expected by highlighters such as [highlight.js](https://highlightjs.org/),
-  [Prism](https://prismjs.com/), or [Shiki](https://shiki.style/) (as well
-  as server-side highlighters used by SSGs, e.g. Chroma in Hugo);
+  expected by highlighters;
 - does not apply bold/italic/etc. formatting to the content — inline
   formatting inside code would break copy-paste and highlighter
   tokenization.
@@ -363,14 +361,14 @@ def render_note(node, context):
 style_map = {"Warning": {"tag": "custom:note"}}
 ```
 
+A complete list of available CSS classes can be found [here](DOCS.md). 
+
 ## Known limitations
 
 - Front matter, `:::html` blocks, and code block merging operate at the
   document's "loose" level (outside lists/tables); inside a table cell or
   list item, each paragraph continues to be processed individually.
-- Table column widths, endnotes separated from footnotes, and other output
-  renderers (Markdown/JSON) are not implemented — the architecture (an
-  intermediate model independent of HTML) already supports these without
+- Table column widths and endnotes separated from footnotes are not implemented — the  architecture (an intermediate model independent of HTML) already supports these without
   structural changes.
 
 ## License
