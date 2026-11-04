@@ -1,5 +1,5 @@
 """
-New project scaffold (`asteria new`).
+New project scaffold (`asteria-ssg new`).
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ def create_project(target_dir: Path) -> list[str]:
     if target_dir.exists() and any(target_dir.iterdir()):
             raise AsteriaError(
                 f"'{target_dir}' It already exists and is not empty, choose another "
-                "directory or empty it before running 'asteria new'."
+                "directory or empty it before running 'asteria-ssg new'."
             )
 
     target_dir.mkdir(parents=True, exist_ok=True)

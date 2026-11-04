@@ -142,11 +142,20 @@ def fingerprint_assets(
         _fingerprint_subdir(output_dir, subdir, manifest)
 
     return manifest
-
+       
 
 def clean_output(config: SiteConfig) -> None:
-    if config.output_dir.exists():
-        shutil.rmtree(config.output_dir)
+    if not config.output_dir.exists():
+        return
+
+    for item in config.output_dir.iterdir():
+        if item.name in [".git", ".nojekyll"]:
+            continue
+
+        if item.is_dir():
+            shutil.rmtree(item)
+        else:
+            item.unlink()
 
 
 def copy_raw_pages(output_dir: Path, raw_pages: list) -> None:

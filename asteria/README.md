@@ -23,7 +23,7 @@ fast, themeable static site.
   development or after a deploy.
 - **Internal cross-references** (`[[page-id]]`) between your own content,
   validated at build time.
-- **Live-reloading dev server** (`asteria serve`) that rebuilds on save.
+- **Live-reloading dev server** (`asteria-ssg serve`) that rebuilds on save.
 - **Fully themeable** with plain Jinja2 templates.
 
 ## Requirements
@@ -33,24 +33,22 @@ fast, themeable static site.
 ## Installation
 
 ```bash
-pip install asteria
+pip install asteria-ssg[watch]
 ```
-
-*(or, from a local checkout: `pip install -e .`)*
 
 ## Quick start
 
 ```bash
 # Scaffold a new project (defaults to ./my_site if no path is given)
-asteria new my-blog
+asteria-ssg new my-blog
 cd my-blog
 
 # Serve locally with auto-rebuild on changes
-asteria serve
+asteria-ssg serve
 # -> http://127.0.0.1:8000
 
 # Build the final static site
-asteria build
+asteria-ssg build
 ```
 
 ## Project structure
@@ -67,7 +65,7 @@ my-blog/
         └── minimal/             # the active theme
 ```
 
-`asteria build` writes the generated site to `my-blog/result/` by default.
+`asteria-ssg build` writes the generated site to `my-blog/result/` by default.
 
 ## Basic usage
 
@@ -122,13 +120,13 @@ See the [[getting-started]] guide for more details.
 
 | Command | What it does |
 |---|---|
-| `asteria new [path]` | Scaffold a new project (default: `./my_site`) |
-| `asteria build` | Build the full static site |
-| `asteria serve` | Build and serve locally, rebuilding on changes |
-| `asteria check` | Validate content and configuration without writing any files |
-| `asteria clean` | Remove the generated output (and optionally the build cache) |
+| `asteria-ssg new [path]` | Scaffold a new project (default: `./my_site`) |
+| `asteria-ssg build` | Build the full static site |
+| `asteria-ssg serve` | Build and serve locally, rebuilding on changes |
+| `asteria-ssg check` | Validate content and configuration without writing any files |
+| `asteria-ssg clean` | Remove the generated output (and optionally the build cache) |
 
-Run `asteria <command> --help` for all available flags.
+Run `asteria-ssg <command> --help` for all available flags.
 
 ## Documentation
 

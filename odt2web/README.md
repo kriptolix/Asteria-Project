@@ -30,7 +30,7 @@ printed-page appearance.
 ## Installation
 
 ```bash
-pip install .
+pip install odt2web
 ```
 
 ## Basic usage

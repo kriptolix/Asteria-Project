@@ -3,7 +3,7 @@ requires = ["setuptools>=68.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "asteria"
+name = "asteria-ssg"
 version = "1.0.0"
 description = "Python SSG (Static Site Generator) based exclusively on ODT documents"
 readme = "README.md"
@@ -35,7 +35,7 @@ dependencies = [
 watch = ["watchfiles>=0.21"]
 
 [project.scripts]
-asteria = "asteria.cli:main"
+asteria-ssg = "asteria.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

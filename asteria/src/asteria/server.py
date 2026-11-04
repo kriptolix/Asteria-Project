@@ -12,12 +12,12 @@ This module has two layers:
 
   * `serve()` -- the CLI's own entry point. It's a thin, blocking
     wrapper around DevServer that reproduces the exact terminal output
-    `asteria serve` has always printed, and returns only once the user
+    `asteria-ssg serve` has always printed, and returns only once the user
     hits Ctrl+C. Kept exactly for that reason: cli.py's contract (prints
     to stdout/stderr, blocks, returns an int exit code) doesn't change.
 
 Automatic rebuild on file changes uses the optional `watchfiles` package
-(`pip install "asteria[watch]"`). Without it the server still works; it
+(`pip install "asteria-ssg[watch]"`). Without it the server still works; it
 just doesn't watch. A frontend that has its own file watcher (e.g. a GTK
 app using Gio.FileMonitor) doesn't need `watchfiles` at all: it creates
 the DevServer with `watch=False, live_reload=True` and calls
@@ -421,7 +421,7 @@ def serve(
     converter_name: str = "auto",
     watch: bool = True,
 ) -> int:
-    """CLI entry point for `asteria serve`: blocks until Ctrl+C, printing
+    """CLI entry point for `asteria-ssg serve`: blocks until Ctrl+C, printing
     exactly what it always has. Implemented on top of DevServer.
     """
     # DevServer would silently disable watching without watchfiles; the
@@ -471,7 +471,7 @@ def serve(
         reason = "'watchfiles' is not installed" if watch_missing else "--no-watch"
         print(f"Automatic rebuild and live reload disabled ({reason}).")
         if watch_missing:
-            print('Install it with: pip install "asteria[watch]"')
+            print('Install it with: pip install "asteria-ssg[watch]"')
     elif not dev.status().watching:
         print(
             "Nothing to observe (source/content, source/static, "

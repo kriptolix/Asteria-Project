@@ -32,7 +32,7 @@ CLI command. For a shorter, task-oriented introduction, see `README.md`.
 
 - Python 3.11+ (the codebase uses `from __future__ import annotations` and
   modern type-hint syntax such as `str | None`).
-- A working `odt2web` installation for the default converter (`asteria build`
+- A working `odt2web` installation for the default converter (`asteria-ssg build`
   uses it unless you pick `--converter fallback` for quick tests — see
   [CLI reference](#5-cli-reference)).
 - Jinja2, PyYAML — installed automatically as dependencies of the package.
@@ -40,28 +40,30 @@ CLI command. For a shorter, task-oriented introduction, see `README.md`.
 ## 2. Installation
 
 Install the package from your project (however you distribute/package it —
-e.g. `pip install asteria` or `pip install -e .` from a local checkout), then
+e.g. `pip install asteria-ssg[watch]` or `pip install -e .` from a local checkout), then
 confirm it's on your `PATH`:
 
+**Obs:** Asteria can also be installed without [watch], but in that case, change tracking and automatic reloading will not be available. 
+
 ```bash
-asteria --help
+asteria-ssg --help
 ```
 
 ## 3. Quick start
 
 ```bash
 # 1. Scaffold a new project. With no argument, it creates ./my_site
-asteria new
+asteria-ssg new
 # ...or give it an explicit name/path:
-asteria new blog-example
+asteria-ssg new blog-example
 
 cd my_site
 
 # 2. Serve it locally, with live rebuild on file changes
-asteria serve
+asteria-ssg serve
 
 # 3. When you're ready, build the final static site
-asteria build
+asteria-ssg build
 ```
 
 The generated project comes with a starter page
@@ -69,7 +71,7 @@ The generated project comes with a starter page
 
 ## 4. Project structure
 
-`asteria new` scaffolds this layout:
+`asteria-ssg new` scaffolds this layout:
 
 ```
 my_site/
@@ -96,7 +98,7 @@ my_site/
             └── images/
 ```
 
-By default, `asteria build` writes the generated site to `my_site/result/`
+By default, `asteria-ssg build` writes the generated site to `my_site/result/`
 (a sibling of `source/` — see `output.directory` in the
 [configuration reference](#6-configuration-siteyaml)).
 
@@ -109,18 +111,18 @@ the current directory (`--project .`).
 The `--project` flag is global and must come **before** the subcommand:
 
 ```bash
-asteria --project /path/to/my_site build
+asteria-ssg --project /path/to/my_site build
 ```
 
 If omitted, `--project` defaults to `.` (the current directory).
 
 | Command | Description |
 |---|---|
-| `asteria new [path]` | Scaffolds a new project at `path`. If `path` is omitted, defaults to `./my_site`. Fails if the target directory already exists and is not empty. |
-| `asteria build [--converter {auto,odt2web}]` | Converts all content and writes the full site to `output.directory`. Exits non-zero on any error-level diagnostic. |
-| `asteria check [--converter {auto,odt2web}]` | Runs the exact same pipeline as `build` (parses YAML, converts every ODT, resolves IDs/references) but **writes nothing to disk**. Use it in CI or before committing content. |
-| `asteria serve [--host HOST] [--port PORT] [--converter {auto,odt2web}] [--no-watch]` | Builds the site and serves it locally. `--host` defaults to `127.0.0.1`, `--port` to `8000`. By default it watches `content/`, `static/`, `themes/`, and `site.yaml` and rebuilds automatically; pass `--no-watch` to disable that. |
-| `asteria clean [--cache]` | Deletes the output directory (`output.directory`). With `--cache`, also deletes the incremental conversion cache file (`.asteria-cache.json`) in the project root. |
+| `asteria-ssg new [path]` | Scaffolds a new project at `path`. If `path` is omitted, defaults to `./my_site`. Fails if the target directory already exists and is not empty. |
+| `asteria-ssg build [--converter {auto,odt2web}]` | Converts all content and writes the full site to `output.directory`. Exits non-zero on any error-level diagnostic. |
+| `asteria-ssg check [--converter {auto,odt2web}]` | Runs the exact same pipeline as `build` (parses YAML, converts every ODT, resolves IDs/references) but **writes nothing to disk**. Use it in CI or before committing content. |
+| `asteria-ssg serve [--host HOST] [--port PORT] [--converter {auto,odt2web}] [--no-watch]` | Builds the site and serves it locally. `--host` defaults to `127.0.0.1`, `--port` to `8000`. By default it watches `content/`, `static/`, `themes/`, and `site.yaml` and rebuilds automatically; pass `--no-watch` to disable that. |
+| `asteria-ssg clean [--cache]` | Deletes the output directory (`output.directory`). With `--cache`, also deletes the incremental conversion cache file (`.asteria-cache.json`) in the project root. |
 
 The `--converter` flag selects the ODT→HTML converter. `auto` and `odt2web`
 are equivalent today (both use the `odt2web` library); `build`'s default is
@@ -429,7 +431,7 @@ Anywhere in a document's body, reference another page or post by its `id`:
 | `\[[some-id]]` | Escaped — renders the literal text `[[some-id]]` instead of resolving it. |
 
 If the referenced `id` doesn't exist, Asteria reports an error diagnostic
-(visible in `asteria build`/`asteria check` output) and renders a visible
+(visible in `asteria-ssg build`/`asteria-ssg check` output) and renders a visible
 `<span class="broken-reference">[[some-id]]</span>` in the HTML, so it's easy
 to spot while reviewing a draft.
 
@@ -585,7 +587,7 @@ When enabled, every file under the theme's `css/`, `js/`, `fonts/`, and
 `images/` output directories is renamed with a hash of its content, e.g.
 `style.css` → `style.a1b2c3d4e5.css`. Because the hash is derived from the
 file's content, it changes automatically whenever you edit the file — which
-means the browser never serves a stale cached copy during `asteria serve`,
+means the browser never serves a stale cached copy during `asteria-ssg serve`,
 and you can set long, aggressive cache lifetimes for these assets in
 production without worrying about invalidation.
 

@@ -96,7 +96,7 @@ def _cmd_check(args: argparse.Namespace) -> int:
     print(
         f"\nValidation ok: {len(result.pages)} page(s), {len(result.posts)} post(s), "
         f"{len(result.diagnostics.warnings)} warning(s). No file was written "
-        "(use 'asteria build' to generate the site)."
+        "(use 'asteria-ssg build' to generate the site)."
     )
     return 0
 
@@ -135,7 +135,7 @@ def _cmd_new(args: argparse.Namespace) -> int:
     for relative in created:
         print(f"  {relative}")
     print(
-        f"\nNext steps:\n  cd {args.path}\n  asteria serve\n"
+        f"\nNext steps:\n  cd {args.path}\n  asteria-ssg serve\n"
         "\nThe initial page (content/pages/welcome.odt) explains the basic"
         
     )
@@ -174,7 +174,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--no-watch",
         action="store_true",
         help="Do not watch for changes in content/static/theme/site.yaml (no automatic rebuild). "
-        "Watching needs the optional 'watchfiles' package: pip install \"asteria[watch]\".",
+        "Watching needs the optional 'watchfiles' package: pip install \"asteria-ssg[watch]\".",
     )
     serve_p.set_defaults(func=_cmd_serve)
 
