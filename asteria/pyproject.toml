@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "asteria-ssg"
-version = "1.0.0"
+version = "1.0.1"
 description = "Python SSG (Static Site Generator) based exclusively on ODT documents"
 readme = "README.md"
 requires-python = ">=3.13"
