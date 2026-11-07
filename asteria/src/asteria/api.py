@@ -24,6 +24,7 @@ from .server import (
     discover_watch_paths,
     watch_backend_available,
 )
+from .theme_config import ThemeConfig, theme_config_from_site
 from .writer import clean_output
 
 __all__ = [
@@ -33,6 +34,7 @@ __all__ = [
     "CleanResult",
     "DevServer",
     "DevServerStatus",
+    "ThemeConfig",
     "build_project",
     "check_project",
     "clean_project",
@@ -40,6 +42,7 @@ __all__ = [
     "create_new_project",
     "discover_watch_paths",
     "load_project_config",
+    "load_project_theme",
     "reset_project_theme",
     "watch_backend_available",
 ]
@@ -50,6 +53,12 @@ def load_project_config(project_root: Path, config_filename: str = "site.yaml") 
     built-in defaults). Raises AsteriaError if the file is missing or not valid YAML.
     """
     return load_config(project_root / "source" / config_filename)
+
+
+def load_project_theme(project_root: Path, config_filename: str = "site.yaml") -> ThemeConfig:
+    """Loads the active theme's `theme.yaml` as a `ThemeConfig`.
+    """
+    return theme_config_from_site(load_project_config(project_root, config_filename))
 
 
 def build_project(

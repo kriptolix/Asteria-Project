@@ -1,0 +1,38 @@
+
+name: Publish odt2web
+
+on:
+  push:
+    tags:
+      - "odt2web-*"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    environment:
+      name: pypi
+      url: https://pypi.org/p/odt2web
+
+    permissions:
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install build
+        run: pip install build
+
+      - name: Build package
+        run: |
+          cd odt2web
+          python -m build
+
+      - name: Publish
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: odt2web/dist/
