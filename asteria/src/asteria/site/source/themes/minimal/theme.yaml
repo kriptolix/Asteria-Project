@@ -4,5 +4,23 @@
 # are missing here, the build will break.
 
 sidebar_toc: true
-default_variant: light
-subtitle: ""
+theme_variants:
+  - "light"
+  - "dark"
+
+default_variant: "light"
+
+known_platforms:  
+  - "discord" 
+  - "e-mail" 
+  - "facebook" 
+  - "github" 
+  - "gitlab" 
+  - "gmail" 
+  - "instagram" 
+  - "mastodon" 
+  - "rss" 
+  - "telegram" 
+  - "x" 
+  - "youtube"
+

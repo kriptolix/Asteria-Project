@@ -402,16 +402,33 @@ a.tag, a.category {
 .social-link {
   color: var(--color-muted);
   display: inline-flex;
+  align-items: center;
+  justify-content: center;
   transition: color 0.15s ease;
 }
 
-.social-link img {
+.social-link img,
+.social-link .social-initials {
   width: 24px;
   height: 24px;
   display: block;
 }
 
-.social-link:hover { color: var(--color-accent); }
+.social-link .social-initials {
+  border-radius: 50%;
+  background-color: var(--color-text);
+  color: var(--color-bg);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;  
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.social-link:hover { 
+  color: var(--color-accent); 
+}
 
 /* ==========================================================================
    Responsivo
