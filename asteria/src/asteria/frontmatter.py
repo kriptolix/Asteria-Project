@@ -51,8 +51,10 @@ class Frontmatter:
     variant: str | None = None  
     
     template: str | None = None
-    toc: bool = True  
-    navigation: bool = False  
+    # None = not set in the document: inherit the theme's global switch
+    # (see theme_config.resolve_theme_feature).
+    toc: bool | None = None
+    navigation: bool | None = None
     lang: str | None = None
   
     featured: bool = False 
@@ -73,6 +75,13 @@ def _parse_bool(value: str | None, default: bool) -> bool:
     if value is None or value.strip() == "":
         return default
     return value.strip().lower() not in ("false", "no", "0", "off")
+
+
+def _parse_optional_bool(value: str | None) -> bool | None:
+    """Like `_parse_bool`, but an absent or empty value stays None."""
+    if value is None or value.strip() == "":
+        return None
+    return _parse_bool(value, default=False)
 
 
 def extract_frontmatter(
@@ -109,8 +118,8 @@ def extract_frontmatter(
         slug=raw_fields.get("slug"),
         variant=raw_fields.get("variant"),
         template=raw_fields.get("template") or None,
-        toc=_parse_bool(raw_fields.get("toc"), default=True),
-        navigation=_parse_bool(raw_fields.get("navigation"), default=False),
+        toc=_parse_optional_bool(raw_fields.get("toc")),
+        navigation=_parse_optional_bool(raw_fields.get("navigation")),
         lang=raw_fields.get("lang") or None,
         featured=_parse_bool(raw_fields.get("featured"), default=False),
         cover=raw_fields.get("cover") or None,

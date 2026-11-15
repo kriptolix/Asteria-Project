@@ -3,7 +3,9 @@
 # be declared here (even if empty). If there are keys used in the template and
 # are missing here, the build will break.
 
-sidebar_toc: true
+toc: true
+navigation: false
+
 theme_variants:
   - "light"
   - "dark"
