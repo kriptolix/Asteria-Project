@@ -38,7 +38,7 @@ from .templating import (
     make_site_view,
     render_template,
 )
-from .theme_config import load_theme_config
+from .theme_config import load_theme_config, resolve_theme_feature
 from .toc import inject_heading_ids_and_build_toc
 from .urls import build_url, prefix_lang, url_to_output_dir, url_to_output_path
 from .writer import (
@@ -193,7 +193,11 @@ def _document_context(
         "breadcrumbs": breadcrumbs,
         "canonical_path": doc.url,
         "og_type": "article" if doc.kind == "post" else "website",
-        "show_navigation": bool(site_view.nav) and doc.navigation_enabled,
+        # Both features are opt-in by the theme (see resolve_theme_feature);
+        # the nav *data* still comes from `nav:` in site.yaml.
+        "show_navigation": bool(site_view.nav)
+        and resolve_theme_feature(theme_ns, "navigation", doc.navigation_enabled),
+        "show_toc": resolve_theme_feature(theme_ns, "toc", doc.toc_enabled),
         "lang": doc.lang or config.default_language,
     }
 
@@ -308,7 +312,7 @@ def run_build(
     for page in pages:
         pages_by_translation_key.setdefault(page.translation_key, {})[page.lang] = page
     
-    theme_config_raw = load_theme_config(config.theme_dir, config.theme_params)
+    theme_ns = load_theme_config(config.theme_dir)
     
     if config.home_page != BLOG_KEY:
         if config.home_page not in menu_references(config.menu_config):
@@ -343,7 +347,7 @@ def run_build(
         )
         for lang in config.languages
     }
-    social_links = build_social_links(config.social_config)
+    social_links = build_social_links(config.social_config, diagnostics)
    
     lang_site_data: dict[str, _LangSiteData] = {}
     for lang in config.languages:
@@ -370,11 +374,9 @@ def run_build(
             tocs={
                 doc.url: doc.toc
                 for doc in [*lang_pages_all, *lang_posts_all]
-                if doc.toc_enabled and doc.toc
+                if doc.toc and resolve_theme_feature(theme_ns, "toc", doc.toc_enabled)
             },
         )
-
-    theme_ns: dict = dict(theme_config_raw)
 
     default_lang_data = lang_site_data.get(config.default_language)
     site_view = make_site_view(

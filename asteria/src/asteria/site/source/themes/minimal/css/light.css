@@ -404,9 +404,14 @@ a.tag, a.category {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: color 0.15s ease;
+  transition: color 0.15s ease; 
 }
 
+.social-link img {
+  filter: brightness(0);
+}
+
+/* Aplica o tamanho fixo tanto para a imagem quanto para as iniciais */
 .social-link img,
 .social-link .social-initials {
   width: 24px;
@@ -414,13 +419,15 @@ a.tag, a.category {
   display: block;
 }
 
+/* Estilo específico do círculo para as iniciais customizadas */
 .social-link .social-initials {
   border-radius: 50%;
   background-color: var(--color-text);
   color: var(--color-bg);
   font-size: 10px;
   font-weight: 600;
-  text-transform: uppercase;  
+  text-transform: uppercase;
+  /* Garante que o texto fique centralizado perfeitamente */
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -430,6 +437,11 @@ a.tag, a.category {
   color: var(--color-accent); 
 }
 
+#asteria-link,
+#asteria-link:visited {
+    color: var(--color-accent);
+    text-decoration: none;
+}
 /* ==========================================================================
    Responsivo
    ========================================================================== */

@@ -7,16 +7,17 @@
    
 {% macro render_social_links(links, known_platforms) %}
 {% if links %}
+{% set icon_platforms = known_platforms | map("lower") | list %}
 
 <div class="social-links">
     {% for item in links %}
     {% set plat = item.platform | lower %}
     <a href="{{ item.url }}" class="social-link" aria-label="{{ item.label }}" title="{{ item.label }}" rel="me noopener">
-        {% if plat in known_platforms %}
+        {% if plat in icon_platforms %}
             <img src="{{ asset('/images/' ~ plat ~ '.svg') }}" alt="{{ item.label }}">
         {% else %}
             <span class="social-initials" aria-hidden="true">
-                {{ item.platform[:2] | upper }}
+                {{ item.initials }}
             </span>
         {% endif %}
     </a>

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import datetime
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -119,6 +120,8 @@ def create_environment(config: SiteConfig) -> Environment:
     # assets are copied and fingerprinted), `asset('/css/style.css')` just
     # returns the path unchanged. Templates can call it unconditionally.
     env.globals["asset"] = lambda path: path
+    # Build-time year, for footers (`{{ current_year }}`).
+    env.globals["current_year"] = datetime.date.today().year
     return env
 
 

@@ -43,8 +43,6 @@ DEFAULTS: dict[str, Any] = {
     "theme": {
         "name": "minimal",
         "directory": "themes",
-        # Site-level overrides for theme-exclusive params 
-        "params": {},
     },
     
     "nav": [],
@@ -60,7 +58,6 @@ DEFAULTS: dict[str, Any] = {
         "default_language": "",
         # Site-level override/extension for the theme's own i18n.yaml
         # (UI string translations) — see i18n_strings.load_theme_i18n.
-        # Same escape hatch as theme.params for theme.yaml.
         "strings": {},
     },
     "assets": {       
@@ -184,12 +181,6 @@ class SiteConfig:
     def social_config(self) -> list[Any]:
         """Raw `social:` entries from site.yaml."""
         return self.data.get("social", [])
-
-    @property
-    def theme_params(self) -> dict[str, Any]:
-        """Site-level overrides for theme-exclusive params, deep-merged
-        onto theme."""
-        return self.data.get("theme", {}).get("params", {})
 
     @property
     def posts_per_page(self) -> int:

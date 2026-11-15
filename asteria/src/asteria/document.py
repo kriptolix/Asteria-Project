@@ -115,13 +115,15 @@ class Document:
         return self.frontmatter.template
 
     @property
-    def toc_enabled(self) -> bool:
-        
+    def toc_enabled(self) -> bool | None:
+        """Per-document override of the theme's global `toc` switch;
+        None when the front matter doesn't set it (inherit the theme's)."""
         return self.frontmatter.toc
 
     @property
-    def navigation_enabled(self) -> bool:
-        
+    def navigation_enabled(self) -> bool | None:
+        """Per-document override of the theme's global `navigation` switch;
+        None when the front matter doesn't set it (inherit the theme's)."""
         return self.frontmatter.navigation
 
     @property
