@@ -70,6 +70,13 @@ def _is_fresh(entry: dict[str, Any] | None, path: Path) -> bool:
     return entry.get("mtime") == mtime and entry.get("size") == size
 
 
+def cached_html(entries: dict[str, Any], odt_path: Path) -> str | None:
+    """The converted HTML cached for `odt_path`, or None if there is no entry
+    or the file changed since it was cached. Never converts anything."""
+    entry = entries.get(str(odt_path.resolve()))
+    return entry["html"] if _is_fresh(entry, odt_path) else None
+
+
 def _result_to_entry(path: Path, result: ConversionResult) -> dict[str, Any]:
     mtime, size = _fingerprint(path)
     return {

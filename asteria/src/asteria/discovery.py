@@ -4,9 +4,11 @@ Scans `content/pages` and `content/posts`.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from .cache import cached_html
 from .config import SiteConfig
 from .converter import ODTConverter
 from .document import Document, Page, Post
@@ -184,6 +186,84 @@ def discover_content(
     _validate_unique_ids(pages, posts, raw_pages, diagnostics)
     _validate_languages([*pages, *posts], config, diagnostics)
     return pages, posts, raw_pages
+
+
+@dataclass
+class PageInfo:
+    """What a UI needs to list or pick a document, without a full build."""
+
+    id: str
+    kind: str  # "page" or "post"
+    translation_key: str  # what menu:/nav: entries should reference
+    lang: str
+    title: str  # front matter `title`, or the id when it has none
+    menu_title: str | None
+    nav_title: str | None
+    cached: bool  # True: read from a fresh cache entry; False: not known, or converted just now
+
+    @property
+    def menu_label(self) -> str:
+        """The label the menu shows (same rule as menu.build_menu)."""
+        return self.menu_title or self.title
+
+    @property
+    def nav_label(self) -> str:
+        """The label the navigation shows (same rule as nav._title_for)."""
+        return self.nav_title or self.title
+
+
+def page_info(
+    config: SiteConfig,
+    entries: dict[str, Any],
+    path: Path,
+    kind: str = "page",
+    converter: ODTConverter | None = None,
+) -> PageInfo:
+    """Describes one `.odt` document using the conversion cache.
+
+    The cache holds the converted HTML, front matter block included, so the
+    titles come from the same `extract_frontmatter` the build uses and never
+    go stale when the parser changes. Without a fresh cache entry (never
+    built, or edited since): with no `converter` the titles are unknown (the
+    id is used); with one, that single file is converted on demand (pass a
+    `CachingConverter` so the result lands in `entries`).
+    """
+    translation_key, lang = _detect_lang(
+        path.stem, config.languages, config.default_language
+    )
+    html = cached_html(entries, path)
+    from_cache = html is not None
+
+    if html is None and converter is not None:
+        html = converter.convert(path, Diagnostics()).html
+
+    if html is None:
+        return PageInfo(
+            path.stem, kind, translation_key, lang, path.stem, None, None, False
+        )
+
+    # Throwaway diagnostics: the build already reports front matter issues.
+    fm, _html = extract_frontmatter(html, source=str(path), diagnostics=Diagnostics())
+    return PageInfo(
+        id=path.stem,
+        kind=kind,
+        translation_key=translation_key,
+        lang=fm.lang or lang,
+        title=fm.title or path.stem,
+        menu_title=fm.menu_title,
+        nav_title=fm.nav_title,
+        cached=from_cache,
+    )
+
+
+def peek_pages(
+    config: SiteConfig, entries: dict[str, Any], diagnostics: Diagnostics
+) -> list[PageInfo]:
+    """Lists the project's `.odt` pages with their titles, read from the
+    cache only (see `page_info`); pages without a fresh entry come back with
+    `cached=False` and the id as title."""
+    page_odts, _raw_dirs = _walk_pages(config.pages_dir, diagnostics)
+    return [page_info(config, entries, path, "page") for path in page_odts]
 
 
 def _validate_languages(

@@ -291,6 +291,8 @@ def run_build(
     pages, posts, raw_pages = discover_content(config, converter, diagnostics)
 
     if diagnostics.has_errors:
+        if not dry_run:
+            save_cache(project_root, cache_entries)  # keep the conversions already done
         return BuildResult(diagnostics, pages, posts, config.output_dir)
 
     _link_translations(pages)
@@ -302,6 +304,8 @@ def run_build(
     )
 
     if diagnostics.has_errors:
+        if not dry_run:
+            save_cache(project_root, cache_entries)  # keep the conversions already done
         return BuildResult(diagnostics, pages, posts, config.output_dir)
 
     _build_toc_for_all([*pages, *posts])

@@ -13,10 +13,12 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .build import BuildResult, run_build
-from .cache import clear_cache
+from .cache import CachingConverter, clear_cache, load_cache, save_cache
 from .config import SiteConfig, load_config
 from .config import reset_theme as _reset_bundled_theme
-from .errors import AsteriaError
+from .converter import get_converter
+from .discovery import PageInfo, page_info, peek_pages
+from .errors import AsteriaError, Diagnostics
 from .scaffold import create_project
 from .server import (
     DevServer,
@@ -34,13 +36,16 @@ __all__ = [
     "CleanResult",
     "DevServer",
     "DevServerStatus",
+    "PageInfo",
     "ThemeConfig",
     "build_project",
     "check_project",
     "clean_project",
     "clear_project_cache",
     "create_new_project",
+    "describe_project_page",
     "discover_watch_paths",
+    "list_project_pages",
     "load_project_config",
     "load_project_theme",
     "reset_project_theme",
@@ -53,6 +58,55 @@ def load_project_config(project_root: Path, config_filename: str = "site.yaml") 
     built-in defaults). Raises AsteriaError if the file is missing or not valid YAML.
     """
     return load_config(project_root / "source" / config_filename)
+
+
+def list_project_pages(
+    project_root: Path, config_filename: str = "site.yaml"
+) -> list[PageInfo]:
+    """Lists the project's pages with their front matter titles, read from
+    the conversion cache: nothing is converted and nothing is written. Pages
+    not yet in the cache (or edited since the last build) come back with
+    `cached=False`; running a build refreshes them.
+    """
+    config = load_config(project_root / "source" / config_filename)
+    return peek_pages(config, load_cache(project_root), Diagnostics())
+
+
+def describe_project_page(
+    project_root: Path,
+    odt_path: Path,
+    converter_name: str = "auto",
+    config_filename: str = "site.yaml",
+) -> PageInfo:
+    """Describes one `.odt` of the project (a page or a post), e.g. the file
+    picked in a file chooser: its `translation_key` (what `menu:`/`nav:`
+    entries should reference) and its front matter titles (`menu_label`,
+    `nav_label`).
+
+    Titles come from the conversion cache; if the file isn't cached (new, or
+    edited since the last build) only that file is converted and cached.
+    Raises AsteriaError if the file isn't an `.odt` under the project's
+    `content/pages` or `content/posts`.
+    """
+    config = load_config(project_root / "source" / config_filename)
+    path = odt_path.resolve()
+
+    kind = None
+    for candidate, directory in (("page", config.pages_dir), ("post", config.posts_dir)):
+        if path.is_relative_to(directory.resolve()):
+            kind = candidate
+            break
+    if path.suffix != ".odt" or not path.is_file() or kind is None:
+        raise AsteriaError(
+            f"{odt_path} is not an .odt file inside content/pages or content/posts."
+        )
+
+    entries = load_cache(project_root)
+    converter = CachingConverter(get_converter(converter_name), entries)
+    info = page_info(config, entries, path, kind, converter)
+    if converter.misses:
+        save_cache(project_root, entries)
+    return info
 
 
 def load_project_theme(project_root: Path, config_filename: str = "site.yaml") -> ThemeConfig:
