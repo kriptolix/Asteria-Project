@@ -11,34 +11,15 @@ from __future__ import annotations
 
 from typing import Any
 
-from .document import Page
 from .errors import Diagnostics
 from .i18n_strings import translate
+from .translations import TranslationIndex
 from .urls import prefix_lang
 
 # Reserved reference meaning "the blog index" — also accepted by
 # `site.home_page`. The blog's URL is derived from `urls.posts`
 # (see SiteConfig.blog_index_url).
 BLOG_KEY = "blog"
-
-
-def resolve_page_reference(
-    ref: str,
-    pages_by_id: dict[str, Page],
-    pages_by_translation_key: dict[str, dict[str, Page]],
-    lang: str,
-    default_language: str,
-) -> Page | None:
-    """translation_key is checked FIRST, exact id second. For a
-    translation group: `lang`, then the default language, then any."""
-    translations = pages_by_translation_key.get(ref)
-    if translations:
-        return (
-            translations.get(lang)
-            or translations.get(default_language)
-            or next(iter(translations.values()))
-        )
-    return pages_by_id.get(ref)
 
 
 def _split_entry(raw: Any) -> tuple[str, str | None, bool] | None:
@@ -61,8 +42,7 @@ def build_menu(
     menu_config: list[Any],
     default_language: str,
     blog_index_url: str,
-    pages_by_id: dict[str, Page],
-    pages_by_translation_key: dict[str, dict[str, Page]],
+    index: TranslationIndex,
     lang: str,
     diagnostics: Diagnostics,
     theme_strings: dict[str, dict[str, str]],
@@ -88,9 +68,7 @@ def build_menu(
                 theme_strings, "blog_menu_label", lang, default_language, fallback="Blog"
             )
         else:
-            page = resolve_page_reference(
-                ref, pages_by_id, pages_by_translation_key, lang, default_language
-            )
+            page = index.resolve(ref, lang)
             if page is None:
                 diagnostics.warning(
                     f"menu: page '{ref}' not found (checked both as an "

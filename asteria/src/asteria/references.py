@@ -1,5 +1,9 @@
 """
 Handles [[id]] / [[id|Custom label]] cross-references between pages/posts.
+
+Which document a reference points to is decided by
+`translations.TranslationIndex.resolve`: the same rule `menu:`, `nav:` and
+`home_page:` use.
 """
 
 from __future__ import annotations
@@ -9,9 +13,10 @@ from html import escape
 from typing import Any
 
 from .errors import Diagnostics
+from .translations import TranslationIndex
 
 # Allows a dot in the id (e.g. "hello-world.pt") so a specific translation
-# can be pinned by its exact document id — see _resolve_target below for
+# can be pinned by its exact document id — see TranslationIndex.resolve for
 # why that alone isn't the primary resolution path.
 REFERENCE_RE = re.compile(r"(\\)?\[\[([A-Za-z0-9_.\-]+)(?:\|([^\]]+))?\]\]")
 
@@ -22,46 +27,15 @@ _MORE_BLOCK_RE = re.compile(r"\s*<p>\s*\[\[more\]\]\s*</p>\s*", re.IGNORECASE)
 _MORE_INLINE_RE = re.compile(r"\[\[more\]\]", re.IGNORECASE)
 
 
-
-def build_registry(items: list[Any]) -> dict[str, Any]:
-    
-    return {item.id: item for item in items}
-
-
-def build_translation_registry(items: list[Any]) -> dict[str, dict[str, Any]]:
-    """Groups items by translation_key -> {lang: item}, so a plain
-    [[reference]] can be resolved to the version matching the *current*
-    document's language."""
-    registry: dict[str, dict[str, Any]] = {}
-    for item in items:
-        translation_key = getattr(item, "translation_key", None)
-        lang = getattr(item, "lang", None)
-        if not translation_key or not lang:
-            continue
-        registry.setdefault(translation_key, {})[lang] = item
-    return registry
-
-
 def resolve_references(
     html: str,
-    registry: dict[str, Any],
+    index: TranslationIndex,
     source: str,
     diagnostics: Diagnostics,
-    translation_registry: dict[str, dict[str, Any]] | None = None,
     lang: str = "",
-    default_language: str = "",
 ) -> str:
-    def _resolve_target(ref_id: str) -> Any | None:
-        # translation_key is checked FIRST, exact id second.
-        if translation_registry:
-            group = translation_registry.get(ref_id)
-            if group:
-                return (
-                    group.get(lang)
-                    or group.get(default_language)
-                    or next(iter(group.values()))
-                )
-        return registry.get(ref_id)
+    """Replaces every `[[ref]]` in `html` with a link, resolving `ref` for
+    a reader in `lang` (the default language when empty)."""
 
     def _replace(match: re.Match) -> str:
         is_escaped = bool(match.group(1))
@@ -76,7 +50,7 @@ def resolve_references(
             # [[more]] is a reserved marker, not a cross-reference.
             return match.group(0)
 
-        target = _resolve_target(ref_id)
+        target = index.resolve(ref_id, lang)
 
         if target is None:
             diagnostics.error(
@@ -95,26 +69,19 @@ def resolve_references(
 
 def resolve_references_for_all(
     documents: list[Any],
+    index: TranslationIndex,
     diagnostics: Diagnostics,
-    extra_targets: list[Any] | None = None,
-    default_language: str = "",
 ) -> None:
-    
-    registry = build_registry(documents)
-    if extra_targets:
-        registry.update(build_registry(extra_targets))
-
-    translation_registry = build_translation_registry(documents)
-
+    """Resolves the references of every document, each one in its own
+    language. `index` should already include any extra targets (raw
+    pages) that may be referenced by exact id."""
     for doc in documents:
         doc.content_html = resolve_references(
             doc.content_html,
-            registry,
+            index,
             source=str(doc.source_path),
             diagnostics=diagnostics,
-            translation_registry=translation_registry,
-            lang=getattr(doc, "lang", "") or default_language,
-            default_language=default_language,
+            lang=getattr(doc, "lang", "") or index.default_language,
         )
 
 

@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from .errors import Diagnostics
-# from .references import build_translation_registry
+from .translations import TranslationIndex
 
 
 @dataclass
@@ -16,24 +16,6 @@ class NavEntry:
     title: str
     url: str | None = None
     children: list["NavEntry"] = field(default_factory=list)
-
-
-def _resolve_target(
-    page_id: str,
-    registry: dict[str, Any],
-    translation_registry: dict[str, dict[str, Any]],
-    lang: str,
-    default_language: str,
-) -> Any | None:
-    """translation_key is checked FIRST, exact id second."""
-    group = translation_registry.get(page_id)
-    if group:
-        return (
-            group.get(lang)
-            or group.get(default_language)
-            or next(iter(group.values()))
-        )
-    return registry.get(page_id)
 
 
 def _title_for(target: Any) -> str:
@@ -44,13 +26,11 @@ def _title_for(target: Any) -> str:
 
 def _resolve(
     page_id: str,
-    registry: dict[str, Any],
-    translation_registry: dict[str, dict[str, Any]],
+    index: TranslationIndex,
     lang: str,
-    default_language: str,
     diagnostics: Diagnostics,
 ) -> NavEntry:
-    target = _resolve_target(page_id, registry, translation_registry, lang, default_language)
+    target = index.resolve(page_id, lang)
     if target is None:
         diagnostics.warning(
             f"nav: Non-existent item reference ID: '{page_id}'.", source="site.yaml"
@@ -61,10 +41,8 @@ def _resolve(
 
 def _parse_items(
     items: list[Any],
-    registry: dict[str, Any],
-    translation_registry: dict[str, dict[str, Any]],
+    index: TranslationIndex,
     lang: str,
-    default_language: str,
     diagnostics: Diagnostics,
 ) -> list[NavEntry]:
     """`items` is `nav:` (or a nested branch of it): each entry is either
@@ -75,9 +53,7 @@ def _parse_items(
 
     for raw in items:
         if isinstance(raw, str):
-            result.append(
-                _resolve(raw, registry, translation_registry, lang, default_language, diagnostics)
-            )
+            result.append(_resolve(raw, index, lang, diagnostics))
             continue
 
         if isinstance(raw, dict) and len(raw) == 1:
@@ -91,18 +67,14 @@ def _parse_items(
                 )
                 continue
 
-            target = _resolve_target(
-                index_id, registry, translation_registry, lang, default_language
-            )
+            target = index.resolve(index_id, lang)
             if target is None:
                 diagnostics.warning(
                     f"nav: Non-existent item reference ID: '{index_id}'.", source="site.yaml"
                 )
                 continue
 
-            children = _parse_items(
-                value, registry, translation_registry, lang, default_language, diagnostics
-            )
+            children = _parse_items(value, index, lang, diagnostics)
             result.append(NavEntry(title=_title_for(target), url=target.url, children=children))
             continue
 
@@ -113,14 +85,13 @@ def _parse_items(
 
 def build_nav(
     nav_config: list[Any],
-    registry: dict[str, Any],
+    index: TranslationIndex,
     diagnostics: Diagnostics,
-    translation_registry: dict[str, dict[str, Any]] | None = None,
     lang: str = "",
-    default_language: str = "",
 ) -> list[NavEntry]:
-    """Builds the nav tree for a single language..
+    """Builds the nav tree for a single language.
+
+    `index` should be built from pages and posts (plus raw pages as extra
+    targets, reachable by exact id only).
     """
-    return _parse_items(
-        nav_config or [], registry, translation_registry or {}, lang, default_language, diagnostics
-    )
+    return _parse_items(nav_config or [], index, lang, diagnostics)

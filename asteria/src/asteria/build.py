@@ -19,15 +19,10 @@ from .document import Document, Page, Post, TocEntry
 from .errors import AsteriaError, Diagnostics
 from .feed import render_atom, render_rss
 from .i18n_strings import load_theme_i18n, translate
-from .menu import BLOG_KEY, build_menu, menu_references, resolve_page_reference
+from .menu import BLOG_KEY, build_menu, menu_references
 from .nav import NavEntry, build_nav
 from .pagination import paginate
-from .references import (
-    build_registry,
-    build_translation_registry,
-    resolve_references_for_all,
-    split_at_more_marker,
-)
+from .references import resolve_references_for_all, split_at_more_marker
 from .sitemap import SitemapEntry, render_sitemap
 from .social import build_social_links
 from .taxonomy import Term, collect_categories, collect_tags
@@ -40,6 +35,7 @@ from .templating import (
 )
 from .theme_config import load_theme_config, resolve_theme_feature
 from .toc import inject_heading_ids_and_build_toc
+from .translations import SiteLanguages, TranslationIndex, link_translations
 from .urls import build_url, prefix_lang, url_to_output_dir, url_to_output_path
 from .writer import (
     clean_output,
@@ -92,18 +88,6 @@ def _assign_urls(config: SiteConfig, pages: list[Page], posts: list[Post]) -> No
         post.url = prefix_lang(base_url, post.lang, config.default_language)
 
 
-def _link_translations(documents: list[Document]) -> None:
-    """Populates `doc.translations` with the other versions 
-    (in other languages) of each document, grouped by `translation_key`.."""
-    groups: dict[str, list[Document]] = {}
-    for doc in documents:
-        groups.setdefault(doc.translation_key, []).append(doc)
-
-    for group in groups.values():
-        for doc in group:
-            doc.translations = {d.lang: d for d in group if d is not doc}
-
-
 def _build_toc_for_all(documents: list[Document]) -> None:
     for doc in documents:
         html_with_ids, toc = inject_heading_ids_and_build_toc(doc.content_html)
@@ -143,8 +127,16 @@ def _site_view_for_lang(
     return replace(site_view, **updates)
 
 
+def _home_crumb(config: SiteConfig, lang: str) -> dict[str, str]:
+    """First breadcrumb: the site's root *in the page's language* ("/" or
+    "/en/"), so an English page doesn't send the reader to the default
+    language's home. A language the site doesn't list gets the root."""
+    langs = SiteLanguages.from_config(config)
+    return {"title": config.title, "url": langs.root_path(lang if lang in langs.all else "")}
+
+
 def _breadcrumbs_for_page(config: SiteConfig, page: Page) -> list[dict[str, str]]:
-    crumbs = [{"title": config.title, "url": "/"}]
+    crumbs = [_home_crumb(config, page.lang)]
     
     if page.translation_key != config.home_page:
         crumbs.append({"title": page.title, "url": page.url})
@@ -171,10 +163,43 @@ def _breadcrumbs_for_post(
     blog_url = prefix_lang(config.blog_index_url, post.lang, config.default_language)
     blog_label = _ui_label(theme_strings, config, "blog_menu_label", post.lang, "Blog")
     return [
-        {"title": config.title, "url": "/"},
+        _home_crumb(config, post.lang),
         {"title": blog_label, "url": blog_url},
         {"title": post.title, "url": post.url},
     ]
+
+
+def _base_context(
+    config: SiteConfig,
+    site_view: SiteView,
+    theme_ns: dict,
+    lang: str,
+    canonical_path: str,
+    breadcrumbs: list[dict[str, str]],
+    *,
+    og_type: str = "website",
+    show_navigation: bool = False,
+    **extra,
+) -> dict:
+    """The context EVERY template is rendered with, whatever its layout
+    (page, post, blog, taxonomy, 404). Building them all here is what
+    guarantees a theme can use any of these keys in a shared partial: the
+    environment uses StrictUndefined, so a key missing from just one
+    layout's context breaks the build only for that layout.
+
+    `lang` is the language of the page being rendered (`page.lang` for a
+    document, the language of the listing otherwise).
+    """
+    return {
+        "site": site_view,
+        "theme": theme_ns,
+        "lang": lang or config.default_language,
+        "canonical_path": canonical_path,
+        "og_type": og_type,
+        "show_navigation": show_navigation,
+        "breadcrumbs": breadcrumbs,
+        **extra,
+    }
 
 
 def _document_context(
@@ -184,22 +209,18 @@ def _document_context(
     doc: Document,
     breadcrumbs: list[dict[str, str]],
 ) -> dict:
-    return {
-        "site": site_view,
-        "theme": theme_ns,
-        "page": doc,
-        "post": doc,
-        "content": Markup(doc.content_html),
-        "breadcrumbs": breadcrumbs,
-        "canonical_path": doc.url,
-        "og_type": "article" if doc.kind == "post" else "website",
+    return _base_context(
+        config, site_view, theme_ns, doc.lang, doc.url, breadcrumbs,
+        og_type="article" if doc.kind == "post" else "website",
         # Both features are opt-in by the theme (see resolve_theme_feature);
         # the nav *data* still comes from `nav:` in site.yaml.
-        "show_navigation": bool(site_view.nav)
+        show_navigation=bool(site_view.nav)
         and resolve_theme_feature(theme_ns, "navigation", doc.navigation_enabled),
-        "show_toc": resolve_theme_feature(theme_ns, "toc", doc.toc_enabled),
-        "lang": doc.lang or config.default_language,
-    }
+        page=doc,
+        post=doc,
+        content=Markup(doc.content_html),
+        show_toc=resolve_theme_feature(theme_ns, "toc", doc.toc_enabled),
+    )
 
 
 def _resolve_template_name(
@@ -225,16 +246,11 @@ def _feed_filename(config: SiteConfig) -> str:
     return "rss.xml" if config.data["feeds"].get("format", "rss") == "rss" else "atom.xml"
 
 
-def _search_index_filename(lang: str, default_language: str) -> str:    
-    return "search-index.json" if lang == default_language else f"{lang}-search-index.json"
-
-
 def _write_search_index(
     config: SiteConfig,
     documents: list[Document],
-    lang: str,
+    filename: str,
 ) -> None:
-    
     entries = [
         {
             "title": doc.title,
@@ -246,7 +262,7 @@ def _write_search_index(
     ]
     write_text_file(
         config.output_dir,
-        _search_index_filename(lang, config.default_language),
+        filename,
         json.dumps(entries, ensure_ascii=False, indent=2) + "\n",
     )
 
@@ -295,13 +311,17 @@ def run_build(
             save_cache(project_root, cache_entries)  # keep the conversions already done
         return BuildResult(diagnostics, pages, posts, config.output_dir)
 
-    _link_translations(pages)
-    _link_translations(posts)
+    link_translations(pages)
+    link_translations(posts)
     _assign_urls(config, pages, posts)
-    resolve_references_for_all(
-        [*pages, *posts], diagnostics, extra_targets=raw_pages,
-        default_language=config.default_language,
+
+    langs = SiteLanguages.from_config(config)
+    # Everything a [[reference]] or a nav: entry can point to. Raw pages
+    # have no language, so they're reachable by their exact id only.
+    content_index = TranslationIndex(
+        [*pages, *posts], config.default_language, extra_targets=raw_pages
     )
+    resolve_references_for_all([*pages, *posts], content_index, diagnostics)
 
     if diagnostics.has_errors:
         if not dry_run:
@@ -311,10 +331,8 @@ def run_build(
     _build_toc_for_all([*pages, *posts])
     _assign_prev_next(posts)
 
-    pages_by_id = {p.id: p for p in pages}
-    pages_by_translation_key: dict[str, dict[str, Page]] = {}
-    for page in pages:
-        pages_by_translation_key.setdefault(page.translation_key, {})[page.lang] = page
+    # Menus and the home page only point to pages (not posts, not raw pages).
+    page_index = TranslationIndex(pages, config.default_language)
     
     theme_ns = load_theme_config(config.theme_dir)
     
@@ -334,21 +352,13 @@ def run_build(
     menus_by_lang: dict[str, list[dict[str, str]]] = {
         lang: build_menu(
             config.menu_config, config.default_language, config.blog_index_url,
-            pages_by_id, pages_by_translation_key, lang, diagnostics, theme_strings,
+            page_index, lang, diagnostics, theme_strings,
         )
         for lang in config.languages
     }
     feed_url = f"/{_feed_filename(config)}" if config.feeds_enabled else None
-    nav_registry = build_registry([*pages, *posts, *raw_pages])
-    # Raw pages are excluded here (same as menus/[[references]]): they have
-    # no lang/translation_key, so they're only reachable by their exact id.
-    nav_translation_registry = build_translation_registry([*pages, *posts])
     navs_by_lang: dict[str, list[NavEntry]] = {
-        lang: build_nav(
-            config.nav_config, nav_registry, diagnostics,
-            translation_registry=nav_translation_registry,
-            lang=lang, default_language=config.default_language,
-        )
+        lang: build_nav(config.nav_config, content_index, diagnostics, lang=lang)
         for lang in config.languages
     }
     social_links = build_social_links(config.social_config, diagnostics)
@@ -363,7 +373,7 @@ def run_build(
         lang_tags = collect_tags(lang_posts_all, config)
         if lang != config.default_language:
             for term in [*lang_categories, *lang_tags]:
-                term.url = prefix_lang(term.url, lang, config.default_language)
+                term.url = langs.prefix(term.url, lang)
 
         lang_site_data[lang] = _LangSiteData(
             menu=menus_by_lang[lang],
@@ -471,7 +481,6 @@ def run_build(
         sitemap_entries.append(SitemapEntry(path=post.url, lastmod=post.date))
     
     for lang in config.languages:
-        is_default_lang = lang == config.default_language
         lang_data = lang_site_data[lang]
         lang_site_view = _site_view_for_lang(
             site_view, lang_site_data, lang, config.default_language,
@@ -479,7 +488,7 @@ def run_build(
       
         lang_posts_desc = lang_data.posts
 
-        blog_index_url = prefix_lang(config.blog_index_url, lang, config.default_language)
+        blog_index_url = langs.prefix(config.blog_index_url, lang)
         blog_label = _ui_label(theme_strings, config, "blog_menu_label", lang, "Blog")
         blog_pages = paginate(lang_posts_desc, config.posts_per_page, blog_index_url)
         for blog_page in blog_pages:
@@ -487,20 +496,15 @@ def run_build(
                 render_template(
                     env,
                     "layouts/blog.html",
-                    {
-                        "site": lang_site_view,
-                        "theme": theme_ns,
-                        "posts": blog_page.items,
-                        "pagination": blog_page,
-                        "canonical_path": blog_page.url,
-                        "og_type": "website",
-                        "show_navigation": False,
-                        "lang": lang,
-                        "breadcrumbs": [
-                            {"title": config.title, "url": "/"},
+                    _base_context(
+                        config, lang_site_view, theme_ns, lang, blog_page.url,
+                        [
+                            _home_crumb(config, lang),
                             {"title": blog_label, "url": blog_index_url},
                         ],
-                    },
+                        posts=blog_page.items,
+                        pagination=blog_page,
+                    ),
                 ),
                 live_reload_script,
             )
@@ -510,12 +514,8 @@ def run_build(
             if blog_page.number == 1:
                 blog_home_html[lang] = html
 
-        tags_index_url = prefix_lang(
-            config.data["urls"]["tags_index"], lang, config.default_language
-        )
-        categories_index_url = prefix_lang(
-            config.data["urls"]["categories_index"], lang, config.default_language
-        )
+        tags_index_url = langs.prefix(config.data["urls"]["tags_index"], lang)
+        categories_index_url = langs.prefix(config.data["urls"]["categories_index"], lang)
         
         lang_tags = lang_data.tags
         lang_categories = lang_data.categories
@@ -523,7 +523,7 @@ def run_build(
         sitemap_entries += _write_taxonomy(
             config, env, lang_site_view, theme_ns, lang_tags,
             kind_label=_ui_label(theme_strings, config, "tags_label", lang, "Tags"),
-            index_url=tags_index_url,
+            index_url=tags_index_url, lang=lang,
             dry_run=dry_run, live_reload_script=live_reload_script,
         )
         sitemap_entries += _write_taxonomy(
@@ -531,7 +531,7 @@ def run_build(
             kind_label=_ui_label(
                 theme_strings, config, "categories_label", lang, "Categories"
             ),
-            index_url=categories_index_url,
+            index_url=categories_index_url, lang=lang,
             dry_run=dry_run, live_reload_script=live_reload_script,
         )
 
@@ -543,31 +543,27 @@ def run_build(
                 else render_atom(config, lang_posts_desc)
             )
             
-            feed_filename = (
-                _feed_filename(config) if is_default_lang else f"{lang}-{_feed_filename(config)}"
-            )
+            feed_filename = langs.localized_filename(_feed_filename(config), lang)
             write_text_file(config.output_dir, feed_filename, feed_xml)
 
         if config.search_enabled and not dry_run:
-            _write_search_index(config, [*lang_data.pages, *lang_posts_desc], lang)
+            _write_search_index(
+                config,
+                [*lang_data.pages, *lang_posts_desc],
+                langs.localized_filename("search-index.json", lang),
+            )
 
     
     is_blog_home = config.home_page == "blog"
     
-    home_pages_by_lang: dict[str, Page] = {}
-    if not is_blog_home:
-      
-        home_page_default = resolve_page_reference(
-            config.home_page, pages_by_id, pages_by_translation_key,
-            lang=config.default_language, default_language=config.default_language,
-        )
-        if home_page_default is not None:
-            home_pages_by_lang[home_page_default.lang] = home_page_default
-            home_pages_by_lang.update(home_page_default.translations)
+    # {lang: page} for every version of the home page.
+    home_pages_by_lang: dict[str, Page] = (
+        {} if is_blog_home else page_index.versions(config.home_page)
+    )
 
     for lang in config.languages:
-        is_default_lang = lang == config.default_language
-        root_path = "/" if is_default_lang else f"/{lang}/"
+        is_default_lang = langs.is_default(lang)
+        root_path = langs.root_path(lang)
 
         if is_blog_home:
             home_html = blog_home_html.get(lang)
@@ -603,14 +599,9 @@ def run_build(
         render_template(
             env,
             "layouts/404.html",
-            {
-                "site": site_view,
-                "theme": theme_ns,
-                "canonical_path": "/404.html",
-                "og_type": "website",
-                "show_navigation": False,
-                "breadcrumbs": [],
-            },
+            _base_context(
+                config, site_view, theme_ns, config.default_language, "/404.html", [],
+            ),
         ),
         live_reload_script,
     )
@@ -652,6 +643,7 @@ def _write_taxonomy(
     terms: list[Term],
     kind_label: str,
     index_url: str,
+    lang: str = "",
     dry_run: bool = False,
     live_reload_script: str | None = None,
 ) -> list[SitemapEntry]:
@@ -661,19 +653,15 @@ def _write_taxonomy(
         render_template(
             env,
             "layouts/taxonomy_index.html",
-            {
-                "site": site_view,
-                "theme": theme_ns,
-                "terms": terms,
-                "kind_label": kind_label,
-                "canonical_path": index_url,
-                "og_type": "website",
-                "show_navigation": False,
-                "breadcrumbs": [
-                    {"title": config.title, "url": "/"},
+            _base_context(
+                config, site_view, theme_ns, lang, index_url,
+                [
+                    _home_crumb(config, lang),
                     {"title": kind_label, "url": index_url},
                 ],
-            },
+                terms=terms,
+                kind_label=kind_label,
+            ),
         ),
         live_reload_script,
     )
@@ -685,21 +673,17 @@ def _write_taxonomy(
             render_template(
                 env,
                 "layouts/taxonomy_term.html",
-                {
-                    "site": site_view,
-                    "theme": theme_ns,
-                    "term": term,
-                    "posts": term.posts,
-                    "kind_label": kind_label,
-                    "canonical_path": term.url,
-                    "og_type": "website",
-                    "show_navigation": False,
-                    "breadcrumbs": [
-                        {"title": config.title, "url": "/"},
+                _base_context(
+                    config, site_view, theme_ns, lang, term.url,
+                    [
+                        _home_crumb(config, lang),
                         {"title": kind_label, "url": index_url},
                         {"title": term.name, "url": term.url},
                     ],
-                },
+                    term=term,
+                    posts=term.posts,
+                    kind_label=kind_label,
+                ),
             ),
             live_reload_script,
         )

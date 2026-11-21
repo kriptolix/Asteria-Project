@@ -16,6 +16,7 @@ from .errors import Diagnostics
 from .frontmatter import extract_frontmatter
 from .highlight import highlight_code_blocks, load_languages
 from .raw import RawPage, load_raw_page
+from .translations import detect_lang, validate_translations
 
 
 def _walk_pages(
@@ -79,16 +80,6 @@ def _walk_posts(
     return odt_paths, raw_dirs
 
 
-def _detect_lang(stem: str, languages: list[str], default_language: str) -> tuple[str, str]:
-    """Detects an explicit language in the file name.
-    """
-    if "." in stem:
-        base, _, suffix = stem.rpartition(".")
-        if base and suffix in languages:
-            return base, suffix
-    return stem, default_language
-
-
 def _load_document(
     path: Path,
     kind: str,
@@ -100,9 +91,12 @@ def _load_document(
 ) -> Document:
     
     doc_id = path.stem
-    if not doc_id or not doc_id.replace("-", "").replace("_", "").isalnum():
+    # A language suffix ("welcome.pt-BR") is not part of the identifier the
+    # author chose, so check the translation_key (the stem without it).
+    check_id = translation_key or doc_id
+    if not check_id or not check_id.replace("-", "").replace("_", "").isalnum():
         diagnostics.warning(
-            f"Unusual document identifier derived from the filename: '{doc_id}'.",
+            f"Unusual document identifier derived from the filename: '{check_id}'.",
             source=str(path),
         )
 
@@ -153,7 +147,7 @@ def discover_content(
     page_odts, page_raw_dirs = _walk_pages(config.pages_dir, diagnostics)
     for path in page_odts:
         
-        translation_key, detected_lang = _detect_lang(
+        translation_key, detected_lang = detect_lang(
             path.stem, config.languages, config.default_language
         )
         pages.append(
@@ -169,7 +163,7 @@ def discover_content(
 
     post_odts, post_raw_dirs = _walk_posts(config.posts_dir, diagnostics)
     for path in post_odts:
-        translation_key, detected_lang = _detect_lang(
+        translation_key, detected_lang = detect_lang(
             path.stem, config.languages, config.default_language
         )
         posts.append(
@@ -184,7 +178,7 @@ def discover_content(
         )
 
     _validate_unique_ids(pages, posts, raw_pages, diagnostics)
-    _validate_languages([*pages, *posts], config, diagnostics)
+    validate_translations([*pages, *posts], config.languages, diagnostics)
     return pages, posts, raw_pages
 
 
@@ -228,7 +222,7 @@ def page_info(
     id is used); with one, that single file is converted on demand (pass a
     `CachingConverter` so the result lands in `entries`).
     """
-    translation_key, lang = _detect_lang(
+    translation_key, lang = detect_lang(
         path.stem, config.languages, config.default_language
     )
     html = cached_html(entries, path)
@@ -264,21 +258,6 @@ def peek_pages(
     `cached=False` and the id as title."""
     page_odts, _raw_dirs = _walk_pages(config.pages_dir, diagnostics)
     return [page_info(config, entries, path, "page") for path in page_odts]
-
-
-def _validate_languages(
-    documents: list[Document], config: SiteConfig, diagnostics: Diagnostics
-) -> None:
-    known = set(config.languages)
-    for doc in documents:
-        if doc.lang not in known:
-            diagnostics.warning(
-                f"{doc.kind.capitalize()} language '{doc.lang}' is not listed in "
-                "i18n.languages (or site.language); it will still be "
-                "built, but won't get a language prefix and won't be "
-                "grouped with the site's other languages.",
-                source=str(doc.source_path),
-            )
 
 
 def _validate_unique_ids(

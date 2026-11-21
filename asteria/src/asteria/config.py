@@ -53,9 +53,11 @@ DEFAULTS: dict[str, Any] = {
         "excerpt_enabled": True,
         "excerpt_length": 280,
     },
-    "i18n": {       
-        "languages": [],       
-        "default_language": "",
+    "i18n": {
+        # EXTRA languages, besides `site.language` (the default one,
+        # always served from the root). Listing the default here too is
+        # harmless.
+        "languages": [],
         # Site-level override/extension for the theme's own i18n.yaml
         # (UI string translations) — see i18n_strings.load_theme_i18n.
         "strings": {},
@@ -128,7 +130,7 @@ class SiteConfig:
         Home identifier: the `id` of a page, or the word 
         special 'blog'
         """
-        return self.data["site"].get("home_page", "inicio")
+        return self.data["site"]["home_page"]
 
     @property
     def pages_dir(self) -> Path:
@@ -195,8 +197,10 @@ class SiteConfig:
         return int(self.data["blog"]["excerpt_length"])
 
     @property
-    def default_language(self) -> str:        
-        return self.data["i18n"].get("default_language") or self.language
+    def default_language(self) -> str:
+        """The language served from the site root. It is `site.language`:
+        there is no separate setting for it."""
+        return self.language
 
     @property
     def languages(self) -> list[str]:
@@ -247,6 +251,22 @@ class SiteConfig:
         return bool(self.data["robots"].get("enabled", True))
 
 
+def _check_legacy_default_language(merged: dict[str, Any], config_path: Path) -> None:
+    """`i18n.default_language` used to be a second way of saying
+    `site.language`. It's still accepted when it agrees with it; when it
+    doesn't, the two settings would pull in different directions, so fail
+    loudly instead of silently picking one."""
+    legacy = (merged.get("i18n") or {}).get("default_language")
+    language = merged["site"]["language"]
+    if legacy and legacy != language:
+        raise AsteriaError(
+            f"{config_path}: i18n.default_language ('{legacy}') differs from "
+            f"site.language ('{language}'). The default language is now set only "
+            "by site.language: set it to the language of your root pages "
+            "and remove i18n.default_language."
+        )
+
+
 def load_config(config_path: Path) -> SiteConfig:
     if not config_path.exists():
         raise AsteriaError(f"Configuration file not found: {config_path}")
@@ -260,6 +280,7 @@ def load_config(config_path: Path) -> SiteConfig:
         raise AsteriaError(f"The content of {config_path} must be a YAML mapping.")
 
     merged = deep_merge(DEFAULTS, raw)
+    _check_legacy_default_language(merged, config_path)
     return SiteConfig(data=merged, root=config_path.parent.resolve())
 
 

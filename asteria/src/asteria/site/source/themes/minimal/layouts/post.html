@@ -28,8 +28,8 @@
     </div>
     {% if post.tags or post.categories %}
     <p class="document__tags">
-        {% for tag in post.tags %}<a class="tag" href="/tags/{{ tag|slug }}/">{{ tag }}</a>{% endfor %}
-        {% for cat in post.categories %}<a class="category" href="/categories/{{ cat|slug }}/">{{ cat }}</a>{% endfor %}
+        {% for tag in post.tags %}{% set term = site.tags | selectattr("name", "equalto", tag) | first %}<a class="tag" href="{{ term.url if term is defined else "/tags/" ~ (tag|slug) ~ "/" }}">{{ tag }}</a>{% endfor %}
+        {% for cat in post.categories %}{% set term = site.categories | selectattr("name", "equalto", cat) | first %}<a class="category" href="{{ term.url if term is defined else "/categories/" ~ (cat|slug) ~ "/" }}">{{ cat }}</a>{% endfor %}
     </p>
     {% endif %}
 

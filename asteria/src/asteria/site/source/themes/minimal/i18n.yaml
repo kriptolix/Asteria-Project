@@ -16,6 +16,8 @@ pt-BR:
   categories_label: "Categorias"
   close_button: "Fechar"
   nav_toc_sections: "Sessões"
+  menu: "Menu"
+  close: "Fechar"
 
 en:
   reading_time: "{minutes} min read"
@@ -35,10 +37,5 @@ en:
   categories_label: "Categories"
   close_button: "Close"
   nav_toc_sections: "Sections"
-
-
-
- 
-
-
-
+  menu: "Menu"
+  close: "Close"

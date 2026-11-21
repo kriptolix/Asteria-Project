@@ -4,15 +4,16 @@
 every theme's `site` is the same shape (templating.SiteView) — the
 simplest way to keep this copy-pasteable into another theme as-is.
 
+`lang` is the language of the page being rendered (an imported macro can't read it from the page's context); it falls back to `site.language`.
 `year` defaults to the build-time year (the `current_year` global); a theme
 can still pass its own value (`render_footer(site, platforms, year=2027)`). #}
-{% macro render_footer(site, known_platforms, year=current_year) %}
+{% macro render_footer(site, known_platforms, year=current_year, lang="") %}
 <footer class="site-footer">
     <div class="footer-elements">
         <div class="footer-info">
             <div>{{ year }} &copy; {{ site.title }}</div>
             <div>
-                {{ t("made_with", site.language) }}
+                {{ t("made_with", lang or site.language) }}
                 <a id="asteria-link" href="https://github.com/kriptolix/Asteria-Project">Asteria</a>
             </div>
         </div>
