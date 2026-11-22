@@ -1,9 +1,9 @@
 site:
   title: "My Site"
   description: ""
-  url: "http://localhost:8000"
-  language: "en"
+  url: "http://localhost:8000"  
   home_page: "welcome"
+  language: "en" 
 
 theme:
   name: "minimal"

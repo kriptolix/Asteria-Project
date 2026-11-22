@@ -8,6 +8,7 @@ import re
 from dataclasses import dataclass, field
 from html import unescape
 
+from .dates import normalize_date
 from .errors import Diagnostics
 
 KNOWN_FIELDS = {
@@ -42,7 +43,7 @@ META_TAG_RE = re.compile(
 @dataclass
 class Frontmatter:
     title: str | None = None
-    date: str | None = None
+    date: str | None = None  # ISO 8601 (normalised by extract_frontmatter), or None
     author: str | None = None
     tags: list[str] = field(default_factory=list)
     categories: list[str] = field(default_factory=list)
@@ -108,9 +109,18 @@ def extract_frontmatter(
                 source=source,
             )
 
+    raw_date = raw_fields.get("date")
+    iso_date = normalize_date(raw_date)
+    if raw_date and iso_date is None:
+        diagnostics.warning(
+            f"Unrecognised date '{raw_date}': write it as YYYY-MM-DD, optionally with a "
+            "time (YYYY-MM-DDTHH:MM). The document is treated as undated.",
+            source=source,
+        )
+
     fm = Frontmatter(
         title=raw_fields.get("title"),
-        date=raw_fields.get("date"),
+        date=iso_date,
         author=raw_fields.get("author"),
         tags=_split_list(raw_fields.get("tags", "")),
         categories=_split_list(raw_fields.get("categories", "")),

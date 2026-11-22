@@ -14,10 +14,12 @@ pt-BR:
   blog_menu_label: "Artigos"
   tags_label: "Tags"
   categories_label: "Categorias"
-  close_button: "Fechar"
   nav_toc_sections: "Sessões"
   menu: "Menu"
   close: "Fechar"
+  months: [janeiro, fevereiro, março, abril, maio, junho, julho, agosto, setembro, outubro, novembro, dezembro]
+  date_long: "{day} de {month} de {year}"
+  date_short: "{day:02}/{month_num:02}/{year}"
 
 en:
   reading_time: "{minutes} min read"
@@ -34,8 +36,10 @@ en:
   made_with: "Made with"
   blog_menu_label: "Articles"
   tags_label: "Tags"
-  categories_label: "Categories"
-  close_button: "Close"
+  categories_label: "Categories" 
   nav_toc_sections: "Sections"
   menu: "Menu"
   close: "Close"
+  months: [January, February, March, April, May, June, July, August, September, October, November, December]
+  date_long: "{month} {day}, {year}"
+  date_short: "{month_num:02}/{day:02}/{year}" 

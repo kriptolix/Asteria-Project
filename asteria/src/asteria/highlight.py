@@ -12,6 +12,7 @@ from typing import Any
 import yaml
 
 from .config import deep_merge
+from .errors import AsteriaError
 
 DEFAULT_LANGUAGES_PATH = Path(__file__).parent / "highlight-languages.yaml"
 
@@ -34,19 +35,53 @@ _TOKEN_CLASS = {
 }
 
 
-def load_languages(project_root: Path | None = None) -> dict[str, dict[str, Any]]:
-    
+def _read_mapping(path: Path) -> dict[str, Any]:
+    """Reads a languages file: YAML holding a mapping of language name -> spec.
+    Anything else is reported as an AsteriaError (like the other YAML files),
+    not left to surface as a raw YAML/attribute traceback."""
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except yaml.YAMLError as exc:
+        raise AsteriaError(f"Invalid YAML in {path}: {exc}") from exc
+    if not isinstance(data, dict):
+        raise AsteriaError(f"The content of {path} must be a YAML mapping.")
+    return data
+
+
+def _check_keywords_are_text(languages: dict[str, Any]) -> None:
+    """YAML reads unquoted `true`, `false`, `null`, `yes`, `no`, `on`, `off`
+    as booleans/null, which would silently highlight the wrong words (`True`
+    instead of `true`). Report it instead of producing a wrong highlight."""
+    for name, spec in languages.items():
+        if not isinstance(spec, dict):
+            continue
+        for word in spec.get("keywords") or []:
+            if isinstance(word, bool) or word is None:
+                raise AsteriaError(
+                    f"highlight: a keyword of language '{name}' was read by YAML as "
+                    f"{'null' if word is None else 'a boolean'} instead of text. Put "
+                    'words like "true", "null", "yes" or "on" in quotes.'
+                )
+
+
+def load_languages(source_dir: Path | None = None) -> dict[str, dict[str, Any]]:
+    """The bundled language definitions, with the project's own
+    `<source_dir>/highlight.yaml` (if any) merged on top.
+
+    `source_dir` is the project's `source/` folder, i.e. `SiteConfig.root`
+    (the same base every other path in `site.yaml` is relative to)."""
     bundled: dict[str, Any] = {}
     if DEFAULT_LANGUAGES_PATH.exists():
-        bundled = yaml.safe_load(DEFAULT_LANGUAGES_PATH.read_text(encoding="utf-8")) or {}
+        bundled = _read_mapping(DEFAULT_LANGUAGES_PATH)
 
     overrides: dict[str, Any] = {}
-    if project_root is not None:
-        override_path = project_root / "source" / "highlight.yaml"
+    if source_dir is not None:
+        override_path = source_dir / "highlight.yaml"
         if override_path.exists():
-            overrides = yaml.safe_load(override_path.read_text(encoding="utf-8")) or {}
+            overrides = _read_mapping(override_path)
 
     merged = deep_merge(bundled, overrides) if overrides else bundled
+    _check_keywords_are_text(merged)
 
     by_key: dict[str, dict[str, Any]] = {}
     for name, spec in merged.items():

@@ -1,32 +1,9 @@
 """
 Everything the SSG knows about translations, in one place.
 
-A source file names its language with a suffix (``welcome.pt-BR.odt``); a
-file without a suffix is written in the site's default language
-(``site.language``). Each file becomes a document with a ``lang`` and a
-``translation_key`` (the file name minus that suffix), and every document
-that shares a ``translation_key`` is a translation of the others.
-
-This module owns:
-
-  * ``detect_lang``           file name -> (translation_key, lang)
-  * ``validate_translations`` known languages, and ONE document per
-                              (translation_key, lang)
-  * ``link_translations``     fills ``doc.translations``
-  * ``TranslationIndex``      the single rule that turns a reference
-                              (``[[welcome]]``, ``menu:``, ``nav:``,
-                              ``home_page:``) into a document
-  * ``SiteLanguages``         default language, URL prefix and the
-                              per-language file names
-
 UI string translations live in ``i18n_strings.py`` and locale date
 formatting in ``dates.py``; both are about *rendering* a language, whereas
 this module is about *which document* belongs to which language.
-
-This module must not import ``config`` or ``document`` (they import from
-here, directly or indirectly): it only relies on the attributes documents
-expose (``id``, ``lang``, ``translation_key``, ``translations``, ``kind``,
-``source_path``).
 """
 
 from __future__ import annotations
@@ -45,11 +22,6 @@ def detect_lang(
     stem: str, languages: Collection[str], default_language: str
 ) -> tuple[str, str]:
     """Detects an explicit language in the file name.
-
-    ``welcome.pt-BR`` -> ``("welcome", "pt-BR")`` when ``pt-BR`` is one of
-    the site's languages. Anything else (no dot, or a dot followed by
-    something that is not a known language) is returned untouched and
-    assumed to be in the default language: ``("welcome", default)``.
     """
     if "." in stem:
         base, _, suffix = stem.rpartition(".")
@@ -63,13 +35,7 @@ def detect_lang(
 def validate_translations(
     documents: Iterable[Any], languages: Collection[str], diagnostics: Diagnostics
 ) -> None:
-    """Checks what discovery cannot know file by file:
-
-    * a document in a language the site doesn't list (warning);
-    * two documents claiming the same (translation_key, lang) (error).
-      Without this check the second one silently replaces the first in
-      every registry, and a whole file just disappears from the site.
-    """
+  
     known = set(languages)
     first_seen: dict[tuple[str, str], Any] = {}
 
@@ -96,14 +62,9 @@ def validate_translations(
             )
 
 
-# -- linking ------------------------------------------------------------------
-
 def link_translations(documents: Iterable[Any]) -> None:
     """Populates `doc.translations` with the other versions (in other
     languages) of each document, grouped by `translation_key`.
-
-    Call it separately for pages and for posts: a page and a post that
-    happen to share a translation_key are not translations of each other.
     """
     groups: dict[str, list[Any]] = {}
     for doc in documents:
@@ -114,26 +75,11 @@ def link_translations(documents: Iterable[Any]) -> None:
             doc.translations = {d.lang: d for d in group if d is not doc}
 
 
-# -- reference resolution -----------------------------------------------------
-
 class TranslationIndex:
     """Resolves a reference to a document, in the language it is read in.
 
     This is the one place that implements the rule shared by
     ``[[references]]``, ``menu:``, ``nav:`` and ``home_page:``:
-
-      1. ``ref`` is first tried as a ``translation_key``. If it names a
-         group, the answer is the version in ``lang``, else the one in the
-         default language, else any version.
-      2. Otherwise ``ref`` is tried as an exact document ``id`` (this is
-         how a specific translation can be pinned, e.g. ``welcome.en``).
-
-    So ``welcome`` finds ``welcome.pt-BR.odt`` even when no plain
-    ``welcome.odt`` exists: references never depend on which file is the
-    "base" one.
-
-    `documents` take part in both steps. `extra_targets` (raw pages, which
-    have no language) are reachable by exact id only.
     """
 
     def __init__(
@@ -169,9 +115,6 @@ class TranslationIndex:
 
     def versions(self, ref: str) -> dict[str, Any]:
         """Every version of `ref`, as {lang: document} (empty if unknown).
-
-        For a translation_key that is the whole group; for an exact id it
-        is that document plus its already-linked translations.
         """
         group = self._groups.get(ref)
         if group:
@@ -185,10 +128,7 @@ class TranslationIndex:
 # -- the site's languages -----------------------------------------------------
 
 @dataclass(frozen=True)
-class SiteLanguages:
-    """The site's languages and everything that depends on which of them
-    is the default one: the default language is served from the root,
-    every other language under ``/<lang>/``."""
+class SiteLanguages:    
 
     default: str
     all: tuple[str, ...]

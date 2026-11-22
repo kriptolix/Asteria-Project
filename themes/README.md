@@ -234,3 +234,31 @@ them:
   the root of a non-default language is `/{lang}/`. Take URLs from the
   objects (`term.url`, `page.url`, `site.blog_index_urls[lang]`), which already
   carry the prefix.
+
+## 8. Styling code blocks
+
+Asteria highlights every `<pre><code>` block of a converted document itself, and
+leaves the colors to the theme's CSS. In the generated HTML:
+
+| Element / class | Meaning |
+|---|---|
+| `<code class="… hl">` | Every highlighted block (the language class, `language-python`, stays next to it). |
+| `.hl-line` | One `<span>` per line of code — a hook for line numbers; Asteria emits none itself. |
+| `.tok-com` | Comments. |
+| `.tok-str` | Strings. |
+| `.tok-num` | Numbers. |
+| `.tok-kw` | Keywords (only for languages that define them). |
+| `.tok-fn` | An identifier directly followed by `(`. |
+| `.tok-punc` | Brackets: `()[]{}`. |
+| `.tok-var` | The name in a line-leading `name = value` (only for languages with `assignment_style: equals`). |
+
+Line numbers can be drawn with CSS counters, for example:
+
+```css
+pre code.hl { counter-reset: line; }
+pre code.hl .hl-line { counter-increment: line; }
+pre code.hl .hl-line::before { content: counter(line); display: inline-block; width: 2em; margin-right: 1em; text-align: right; opacity: .5; }
+```
+
+Languages and their keywords are defined by Asteria (and by the project's
+`source/highlight.yaml`), not by the theme.

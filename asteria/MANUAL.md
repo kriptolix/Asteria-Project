@@ -82,6 +82,7 @@ my-site/
 ├── result/                    # the generated site (see output.directory); created by build
 └── source/                    # everything you edit lives here
     ├── site.yaml               # site-wide configuration
+    ├── highlight.yaml          # optional: extra code-highlighting languages (see 7.3)
     ├── content/
     │   ├── pages/               # standalone pages (*.odt)
     │   └── posts/                # blog posts (*.odt)
@@ -124,7 +125,7 @@ If omitted, `--project` defaults to `.` (the current directory).
 | `asteria-ssg new [path]` | Scaffolds a new project at `path`. If `path` is omitted, defaults to `./my-site`. Fails if the target directory already exists and is not empty. |
 | `asteria-ssg build [--converter {auto,odt2web}]` | Converts all content and writes the full site to `output.directory`. The output directory is emptied first — everything except `.git` and `.nojekyll`, so a Git repository or GitHub Pages marker living in it survives. Exits non-zero on any error-level diagnostic. |
 | `asteria-ssg check [--converter {auto,odt2web}]` | Runs the exact same pipeline as `build` (parses YAML, converts every ODT, resolves IDs/references, renders every template) but **writes nothing to disk**. Use it in CI or before committing content. |
-| `asteria-ssg serve [--host HOST] [--port PORT] [--converter {auto,odt2web}] [--no-watch]` | Builds the site and serves `output.directory` locally. `--host` defaults to `127.0.0.1`, `--port` to `8000`. By default it watches `content/`, `static/`, `site.yaml` and the active theme folder, and rebuilds and reloads the browser automatically; pass `--no-watch` to disable that. Watching needs the optional `watchfiles` package (`pip install "asteria-ssg[watch]"`); without it the site is built and served once, with no live reload. |
+| `asteria-ssg serve [--host HOST] [--port PORT] [--converter {auto,odt2web}] [--no-watch]` | Builds the site and serves `output.directory` locally. `--host` defaults to `127.0.0.1`, `--port` to `8000`. By default it watches `content/`, `static/`, `site.yaml`, `highlight.yaml` and the active theme folder, and rebuilds and reloads the browser automatically; pass `--no-watch` to disable that. Watching needs the optional `watchfiles` package (`pip install "asteria-ssg[watch]"`); without it the site is built and served once, with no live reload. |
 | `asteria-ssg clean [--cache]` | Empties the output directory (same rule as `build`: `.git` and `.nojekyll` are kept). With `--cache`, also deletes the incremental conversion cache file (`.asteria-cache.json`) in the project root. |
 | `asteria-ssg reset-theme [--yes]` | Copies Asteria's bundled `minimal` theme over `source/themes/minimal`, discarding your edits to every file that exists in the bundled theme (extra files you added are left alone). Asks for confirmation unless `--yes` is given. It always targets the folder named `minimal`, whatever `theme.name` says. |
 
@@ -557,6 +558,98 @@ bulleted/numbered lists, tables, links, and inline images are all converted
 to their HTML equivalents. Images embedded in the document are extracted and
 copied alongside the generated page.
 
+### 7.3 Code blocks and syntax highlighting
+
+Every `<pre><code>` block in a converted document is syntax-highlighted
+automatically, with no dependency and no configuration. The highlighter is a
+deliberately simple one — a handful of patterns per language, not a parser — and
+it does three things to each block:
+
+- adds the class `hl` to the `<code>` element;
+- wraps every line in `<span class="hl-line">`, so a theme can number the lines
+  with CSS counters (Asteria itself adds no numbers);
+- wraps the tokens it recognises in `<span class="tok-…">`: `tok-com` (comments),
+  `tok-str` (strings), `tok-num` (numbers), `tok-kw` (keywords), `tok-fn`
+  (an identifier followed by `(`), `tok-punc` (brackets) and `tok-var` (the
+  name in a `name = …` assignment). Colors and the rest of the look are up to
+  the theme's CSS (see its `README.md`).
+
+**Marking the language in the ODT.** Asteria reads the language from a
+`language-NAME` class on the `<code>` element (`<code class="language-python">`).
+In the ODT, the code goes in paragraphs of a style that `odt2web` maps to a
+`<pre>` (see its style mapping for the style names): consecutive paragraphs of
+the same style form one block, a manual line break (Shift+Enter) inside a
+paragraph is a new line, and inline formatting (bold, italic, links) is flattened
+to plain text so the code is never altered. The language comes from either of two
+places:
+
+- a first line in the Markdown style, such as `` ```python ``: it is removed from
+  the code and names the language. Write the opening line only — a closing
+  `` ``` `` line is not removed, it would end up in the code;
+- otherwise, the `language-…` class the paragraph style is mapped to.
+
+The name is matched case-insensitively. A block with no language, or with one
+Asteria doesn't know, still gets the generic highlighting — strings, numbers,
+function calls and brackets — but no keywords or comments.
+
+Two files define the languages: the built-in `highlight-languages.yaml`, which
+lives inside the Asteria package and applies to every project and theme, and your
+optional `source/highlight.yaml`, merged over it. The built-in one covers:
+
+| Language | Also accepted as |
+|---|---|
+| `python` | `py` |
+| `javascript` | `js`, `jsx`, `typescript`, `ts`, `tsx` |
+| `html` | `htm`, `xml` |
+| `css` | `scss`, `less` |
+| `json` | — |
+| `bash` | `sh`, `shell`, `zsh` |
+| `yaml` | `yml` |
+| `sql` | — |
+
+(`typescript`, `jsx` and `tsx` are highlighted with the JavaScript definition.)
+To add a language, or to change a built-in one, create `source/highlight.yaml` in
+your project:
+
+```yaml
+# source/highlight.yaml
+mylang:
+  aliases: [ml]                 # other names accepted in `language-…`
+  keywords: [let, in, fun]
+  line_comment: "--"
+  block_comments:               # list of [start, end] pairs
+    - ["(*", "*)"]
+  triple_quotes: ['"""']        # multi-line string delimiters
+  assignment_style: equals      # marks `name = …` at the start of a line as tok-var
+```
+
+| Key | Meaning |
+|---|---|
+| `aliases` | Other names for the language (`py` for `python`). |
+| `keywords` | Words highlighted as `tok-kw` (whole words only, case-sensitive). |
+| `line_comment` | The text that starts a comment running to the end of the line. |
+| `block_comments` | A list of `[start, end]` pairs for comments that can span lines. |
+| `triple_quotes` | Delimiters of multi-line strings. Ordinary `"…"` and `'…'` strings are always recognised. |
+| `assignment_style` | `equals` highlights the name in a line-leading `name = value` (not `==`). |
+
+Write language names and aliases in lowercase (the class in the HTML is
+lowercased before the lookup), and put in quotes any keyword that YAML would read
+as a boolean or null — `"true"`, `"null"`, `"yes"`, `"on"`… — otherwise the build
+stops with an error naming the language. Keywords are case-sensitive: the built-in
+SQL list is uppercase, so a lowercase `select` isn't highlighted (list the
+lowercase words too if you write SQL that way). Your file is merged over the bundled one language
+by language: a language you redefine keeps the keys you don't mention, but a list
+you do give (`keywords`, `aliases`, …) **replaces** the bundled list rather than
+extending it. An unreadable `highlight.yaml` stops the build with a
+`FATAL ERROR`, like the other YAML files.
+
+Highlighting is applied on every build, after the conversion cache, so editing
+`highlight.yaml` takes effect immediately without clearing the cache. It only
+applies to converted `.odt` content, not to [raw HTML pages](#8-pages-posts-and-raw-html-pages).
+Since code blocks are highlighted before cross-references are resolved, a
+`[[something]]` inside a code block is always left as text — you never need to
+escape it there.
+
 ## 8. Pages, posts, and raw HTML pages
 
 - **Pages** (`content/pages/*.odt`) are standalone content — About, Contact,
@@ -568,11 +661,23 @@ copied alongside the generated page.
   a direct child of that directory.
 - **Raw HTML pages**: instead of an `.odt` file, you can create a folder
   containing an `index.html` (plus any assets it needs) inside `content/pages/`
-  or `content/posts/`. Asteria copies the whole folder as-is to the corresponding
-  URL, without any conversion. This is useful for publishing externally-built
-  content (an exported prototype, a WebGL build, etc.) at its own URL, which
-  you can then link to with `[[its-id]]`. A folder with neither `.odt` files nor
-  an `index.html` is ignored with a warning.
+  or `content/posts/`. Asteria copies the whole folder as-is to its own URL,
+  without any conversion. This is useful for publishing externally-built content
+  (an exported prototype, a WebGL build, etc.) at its own URL, which you can then
+  link to with `[[its-id]]`.
+
+  - The folder name is the page's `id` and, slugified, its URL slug: the URL is
+    `urls.pages` (or `urls.posts`, inside `content/posts/`) filled with that slug,
+    so `content/pages/demo/` becomes `/pages/demo/`, and `content/pages/Has Space/`
+    becomes `/pages/has-space/`. Raw pages inside an organizational subfolder of
+    `content/pages/` work too, and the subfolder is not part of the URL.
+  - The `id` must be unique across the whole site, raw pages included (a clash
+    with a page is a duplicate-ID error). Since `[[…]]` only recognises letters,
+    digits, `_`, `-` and `.`, name the folder with those characters if you want
+    to link to it.
+  - A folder that contains an `.odt` file at **any** depth is treated as an
+    organizational folder instead, and its `index.html` is ignored. A folder with
+    neither `.odt` files nor an `index.html` is ignored with a warning.
 
   Optionally add a `raw.yaml` inside that folder:
 
@@ -580,8 +685,10 @@ copied alongside the generated page.
   title: "Interactive Demo"
   ```
 
-  `title` is used as the label in `nav:` and as the link text for
-  `[[its-id]]` references. Raw pages do **not** participate in multi-language
+  `title` (the folder name when absent) is the label of the page in `nav:` and
+  the link text of `[[its-id]]` references. It is the only key read, and the file
+  is not copied to the output; an invalid `raw.yaml` is ignored with a warning.
+  Raw pages are listed in `sitemap.xml`, but do **not** take part in multi-language
   routing, and cannot be `menu:` entries (see
   [limitations](#15-known-limitations)).
 
@@ -602,6 +709,9 @@ to spot while reviewing a draft.
 
 **ID character set:** letters, digits, `_`, `-`, and `.` are recognized
 inside `[[...]]`.
+
+**Code blocks:** `[[...]]` inside a code block is never treated as a reference
+(see [7.3](#73-code-blocks-and-syntax-highlighting)), so it needs no escaping there.
 
 **Embedding raw HTML (iframes, embeds, widgets):** this isn't `[[...]]`
 syntax at all — write a `:::html ... :::` fenced block directly in your ODT
@@ -1004,6 +1114,13 @@ write by hand for these, only configuration to adjust.
 - **A document in a language that isn't configured** is built under its
   `/{lang}/` prefix but appears in no listing (see
   [11.2](#112-naming-translated-files)).
+
+- **Raw page ids are folder names.** A folder name with characters outside
+  letters, digits, `_`, `-` and `.` works as a page, but cannot be the target of
+  a `[[…]]` reference.
+- **Syntax highlighting is heuristic.** It is built from a few regular
+  expressions per language, so unusual syntax (nested comments, string
+  interpolation, regex literals…) may be coloured imperfectly.
 
 ## 16. Python API
 

@@ -11,6 +11,7 @@ from pathlib import Path
 from markupsafe import Markup
 
 from .converter import ExtractedImage
+from .dates import UNDATED, to_utc
 from .frontmatter import Frontmatter
 from .urls import slugify
 
@@ -170,7 +171,8 @@ class Document:
         return max(1, -(-self.word_count // words_per_minute))
 
     def sort_key(self):
-        return self.frontmatter.date or ""
+        """Chronological key: the parsed date (UTC), undated documents first."""
+        return to_utc(self.frontmatter.date) or UNDATED
 
 
 @dataclass

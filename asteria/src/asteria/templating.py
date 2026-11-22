@@ -10,7 +10,7 @@ from jinja2 import Environment, FileSystemLoader, StrictUndefined, select_autoes
 from markupsafe import Markup
 
 from .config import SiteConfig
-from .dates import format_date
+from .dates import format_date, validate_date_strings
 from .i18n_strings import load_theme_i18n, translate
 from .nav import NavEntry
 from .urls import prefix_lang, slugify
@@ -98,29 +98,25 @@ def create_environment(config: SiteConfig) -> Environment:
         trim_blocks=True,
         lstrip_blocks=True,
     )
-    # `content` (and other document fields that are already trusted HTML from
-    # the pipeline) must be inserted without extra escaping: templates use
-    # `{{ post.content }}` directly, so we mark it as safe here via a
-    # dedicated filter instead of using a global autoescape=False.
+    
     env.filters["safe_content"] = lambda value: Markup(value)
     env.filters["slug"] = slugify
-    env.filters["format_date"] = format_date
     env.globals["nav_branch_active"] = _nav_branch_contains
     env.globals["menu_item_active"] = _menu_item_active
-    # `t(key, lang, **kwargs)` — UI string translations owned by the
-    # theme's own i18n.yaml (plus any site.yaml `i18n.strings`
-    # override), loaded once here since they don't change per-document
-    # the way `site`/`theme` context values do. See i18n_strings.py.
+   
     theme_strings = load_theme_i18n(theme_dir, config.i18n_string_overrides)
+    validate_date_strings(theme_strings)
+    
+    env.filters["format_date"] = lambda raw, lang="", style="long": format_date(
+        theme_strings, config.default_language, raw, lang, style,
+    )
     env.globals["t"] = lambda key, lang="", **kwargs: translate(
         theme_strings, key, lang or config.default_language,
         config.default_language, **kwargs,
     )
-    # Fallback identity: until `apply_asset_manifest` runs (after static
-    # assets are copied and fingerprinted), `asset('/css/style.css')` just
-    # returns the path unchanged. Templates can call it unconditionally.
+   
     env.globals["asset"] = lambda path: path
-    # Build-time year, for footers (`{{ current_year }}`).
+
     env.globals["current_year"] = datetime.date.today().year
     return env
 

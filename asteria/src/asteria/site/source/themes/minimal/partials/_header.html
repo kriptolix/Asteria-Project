@@ -23,7 +23,7 @@
         <div class="site-menu-drawer" id="site-menu-drawer">
             <button type="button" class="drawer__close" id="menu-close">
                 <span aria-hidden="true">&times;</span>
-                <span class="sr-only">{{ t("close_button", current_lang) }}</span>
+                <span class="sr-only">{{ t("close", current_lang) }}</span>
             </button>
             {{ sitemenu.render_site_menu(site.menu, canonical_path) }}
             {{ langswitch.render_lang_switcher(site.languages, current_lang, site.blog_index_urls, translations) }}

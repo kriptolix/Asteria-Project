@@ -9,19 +9,10 @@ from email.utils import format_datetime
 from html import escape
 
 from .config import SiteConfig
+from .dates import to_utc
 from .document import Post
 
 
-def _parse_date(value: str | None) -> datetime:
-    if not value:
-        return datetime.now(tz=timezone.utc)
-    for fmt in ("%Y-%m-%d", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M:%S%z"):
-        try:
-            dt = datetime.strptime(value, fmt)
-            return dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt
-        except ValueError:
-            continue
-    return datetime.now(tz=timezone.utc)
 
 
 def render_rss(config: SiteConfig, posts: list[Post]) -> str:
@@ -31,13 +22,18 @@ def render_rss(config: SiteConfig, posts: list[Post]) -> str:
     items = []
     for post in posts:
         link = f"{site_url}{post.url}"
-        pub_date = format_datetime(_parse_date(post.date))
+        published = to_utc(post.date)
+        # RSS `pubDate` is optional: an undated post simply has none, rather
+        # than a date invented at build time.
+        pub_date = (
+            f"    <pubDate>{format_datetime(published)}</pubDate>\n" if published else ""
+        )
         items.append(
             "  <item>\n"
             f"    <title>{escape(post.title)}</title>\n"
             f"    <link>{escape(link)}</link>\n"
             f"    <guid>{escape(link)}</guid>\n"
-            f"    <pubDate>{pub_date}</pubDate>\n"
+            f"{pub_date}"
             f"    <description>{escape(post.excerpt)}</description>\n"
             "  </item>"
         )
@@ -64,12 +60,14 @@ def render_atom(config: SiteConfig, posts: list[Post]) -> str:
     entries = []
     for post in posts:
         link = f"{site_url}{post.url}"
+        # Atom requires `updated`: an undated post gets the build time.
+        updated_at = to_utc(post.date) or datetime.now(tz=timezone.utc)
         entries.append(
             "  <entry>\n"
             f"    <title>{escape(post.title)}</title>\n"
             f'    <link href="{escape(link)}"/>\n'
             f"    <id>{escape(link)}</id>\n"
-            f"    <updated>{_parse_date(post.date).isoformat()}</updated>\n"
+            f"    <updated>{updated_at.isoformat()}</updated>\n"
             f"    <summary>{escape(post.excerpt)}</summary>\n"
             "  </entry>"
         )
