@@ -1,48 +1,75 @@
-
 name: Publish odt2web
 
 on:
   push:
     tags:
       - "odt2web-*"
-
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag do release existente"
+        required: true
+        type: string
+
+env:
+  TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
 
 jobs:
-  publish:
+  build:
     runs-on: ubuntu-latest
-
-    environment:
-      name: pypi
-      url: https://pypi.org/p/odt2web
-
-    permissions:
-      id-token: write
-      contents: write
-
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
 
       - uses: actions/setup-python@v5
         with:
           python-version: "3.x"
 
-      - name: Install build
-        run: pip install build
+      - run: pip install build
 
       - name: Build package
         run: |
           cd odt2web
           python -m build
 
-      - name: Publish to PyPI
-        if: github.event_name == 'push'
-        uses: pypa/gh-action-pypi-publish@release/v1
+      - uses: actions/upload-artifact@v4
         with:
-          packages-dir: odt2web/dist/
+          name: dist
+          path: odt2web/dist/
 
-      - name: Upload files to GitHub Release
-        uses: softprops/action-gh-release@v2
+  publish-pypi:
+    needs: build
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/odt2web
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
         with:
-          files: odt2web/dist/*
+          name: dist
+          path: dist/
+
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
+
+  release-files:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG }}
+          files: dist/*
           overwrite_files: true
