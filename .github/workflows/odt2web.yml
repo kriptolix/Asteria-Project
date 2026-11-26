@@ -5,6 +5,8 @@ on:
   push:
     tags:
       - "odt2web-*"
+  
+  workflow_dispatch:
 
 jobs:
   publish:
@@ -36,3 +38,11 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: odt2web/dist/
+  
+  release-assets:
+    needs: publish
+    uses: ./.github/workflows/upload-release.yml
+    with:
+      package-dir: odt2web/dist
+    permissions:
+      contents: write
