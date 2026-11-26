@@ -141,6 +141,11 @@ The **[complete manual](MANUAL.md)** covers:
 - Theming: required templates, available context variables, filters
 - Known limitations
 
+
+## Current status
+
+Stable. All features are now usable. The goal is to avoid any further API changes that would break compatibility, though such changes could still occur—especially regarding themes.
+
 ## License
 
 AGPL-3.0.

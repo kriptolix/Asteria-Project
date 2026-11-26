@@ -50,13 +50,9 @@ It's very easy to tell when someone doesn't understand what they're doing with c
 
 No problem, just don't use the monorepo's content. Believe it or not, you aren't forced to. You can hate Slop all you want, as long as you don't come and hassle me about it. Asteria is a personal project for personal use. If you like it, you are welcome to use it too, but I will steer it in the direction I see fit.
 
-## Current status
-
-All components are in use. There are still some adjustments and minor bugs to fix, but all core features are already functional.
-
 ## How to install
 
-In the future, both the SSG and the conversion library will be available on [PyPI](https://pypi.org/). However, since the project is currently under development, installation is still manual.
+Both the SSG and the conversion library are available on [PyPI](https://pypi.org/). For developers, a manual installation can be performed by following the steps below.
 
 ### 1. Clone the repository
 
