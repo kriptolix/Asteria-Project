@@ -5,9 +5,9 @@ on:
   push:
     tags:
       - "asteria-ssg-*"
-  
+
   workflow_dispatch:
-  
+
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -18,6 +18,7 @@ jobs:
 
     permissions:
       id-token: write
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
@@ -34,15 +35,14 @@ jobs:
           cd asteria
           python -m build
 
-      - name: Publish
+      - name: Publish to PyPI
+        if: github.event_name == 'push'
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: asteria/dist/
 
-  release-assets:
-    needs: publish
-    uses: ./.github/workflows/upload-release.yml
-    with:
-      package-dir: asteria/dist
-    permissions:
-      contents: write
+      - name: Upload files to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: asteria/dist/*
+          overwrite_files: true

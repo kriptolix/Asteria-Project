@@ -5,7 +5,7 @@ on:
   push:
     tags:
       - "odt2web-*"
-  
+
   workflow_dispatch:
 
 jobs:
@@ -18,6 +18,7 @@ jobs:
 
     permissions:
       id-token: write
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
@@ -34,15 +35,14 @@ jobs:
           cd odt2web
           python -m build
 
-      - name: Publish
+      - name: Publish to PyPI
+        if: github.event_name == 'push'
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: odt2web/dist/
-  
-  release-assets:
-    needs: publish
-    uses: ./.github/workflows/upload-release.yml
-    with:
-      package-dir: odt2web/dist
-    permissions:
-      contents: write
+
+      - name: Upload files to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: odt2web/dist/*
+          overwrite_files: true
